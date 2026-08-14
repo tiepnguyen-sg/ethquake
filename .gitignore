@@ -1,0 +1,138 @@
+# ============================================================
+# Operating system
+# ============================================================
+
+.DS_Store
+Thumbs.db
+
+# ============================================================
+# Editors / IDEs
+# ============================================================
+
+.idea/
+.vscode/
+
+*.swp
+*.swo
+*~
+*.tmp
+
+# ============================================================
+# Environment / local configuration
+# ============================================================
+
+.env
+.env.*
+!.env.example
+
+.envrc
+.direnv/
+
+*.local.yaml
+*.local.yml
+*.local.json
+*.local.toml
+config.local.*
+
+# ============================================================
+# Secrets / credentials
+# ============================================================
+
+secrets/
+credentials/
+private/
+
+*.key
+*.pem
+*.p12
+*.pfx
+
+# GCP credentials
+*service-account*.json
+*gcp-credentials*.json
+application_default_credentials.json
+
+# Kubernetes credentials
+kubeconfig
+kubeconfig.*
+*.kubeconfig
+
+# ============================================================
+# Go build / test output
+# ============================================================
+
+bin/
+build/
+dist/
+
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+*.test
+*.out
+
+coverage.out
+coverage.html
+coverage/
+
+# ============================================================
+# Runtime / temporary files
+# ============================================================
+
+tmp/
+temp/
+.cache/
+.cache-*/
+
+logs/
+*.log
+
+# ============================================================
+# Experiment output
+#
+# Raw evidence is intentionally not committed.
+# Sanitized/public datasets may be published separately.
+# ============================================================
+
+runs/
+artifacts/
+
+# ============================================================
+# Local observability state
+# ============================================================
+
+prometheus-data/
+grafana-data/
+
+# ============================================================
+# Kurtosis / Kubernetes local state
+# ============================================================
+
+.kurtosis/
+kurtosis-data/
+
+# ============================================================
+# Terraform
+#
+# Terraform source and .terraform.lock.hcl SHOULD be committed.
+# Runtime state and secret variable values MUST NOT.
+# ============================================================
+
+.terraform/
+
+*.tfstate
+*.tfstate.*
+*.tfplan
+
+terraform.tfvars
+*.auto.tfvars
+
+# ============================================================
+# Misc generated files
+# ============================================================
+
+*.bak
+*.orig
