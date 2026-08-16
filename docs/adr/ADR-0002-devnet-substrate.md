@@ -34,6 +34,12 @@ stable labels, then creates explicit Kubernetes port-forwards bound to
 Beacon API, Prometheus, and Grafana. Every forward has explicit ownership,
 lifecycle, and cleanup. Wildcard listeners are prohibited.
 
+Phase 1 and Phase 2 accept the upstream package's transitive mutable references
+as a documented limitation. No Phase 3 evidence run may begin until the full
+experiment dependency closure is reproducible: the package and its imports are
+immutable, runtime images are digest-pinned, resolved metadata is included in
+the evidence bundle, and a clean run cannot silently resolve different inputs.
+
 ## Alternatives
 
 Docker-only Kurtosis does not satisfy the Kubernetes requirement.
@@ -53,3 +59,9 @@ verified during the next increments.
 
 Local Kubernetes service access is intentionally managed by Ethquake automation
 instead of Kurtosis dynamic host port publication.
+
+The Phase 1 run resolved `protolambda/eth2-val-tools:latest` to
+`sha256:46147228f291266148a6a21a2b9541367ad5f70e619d79cd5393459baf539f58`
+and `badouralix/curl-jq:latest` to
+`sha256:1e7c0284e24572ace7170df9fc91f15fd3b79ebf056d4dde17244d5d74bbfabc`.
+These observations preserve what ran; they do not pin future resolution.

@@ -26,6 +26,7 @@ repository_root=$(CDPATH= cd -- "$script_dir/../.." && pwd)
 access_script="$script_dir/access.sh"
 versions_file="$repository_root/devnet/versions.env"
 network_params="$repository_root/devnet/network_params.yaml"
+finality_dashboard="$repository_root/devnet/grafana/ethquake-finality.json"
 kubeconfig="$repository_root/.kurtosis/kubeconfig"
 enclave=ethquake
 namespace="kt-$enclave"
@@ -39,6 +40,9 @@ lighthouse_port=15052
 teku_port=15053
 prometheus_port=19090
 grafana_port=13000
+finality_dashboard_uid=ethquake-finality
+finality_dashboard_title='Ethquake Finality'
+finality_query='beacon_finalized_epoch{client_type="beacon"}'
 
 if [ ! -r "$versions_file" ]; then
     die "Cannot read version locks: $versions_file"
@@ -244,6 +248,83 @@ verify_observability() {
         die "Grafana database health is not ok"
     fi
     pass "Grafana health endpoint"
+
+    dashboard_response=$(curl --fail --silent --show-error --max-time 10 \
+        "http://127.0.0.1:$grafana_port/api/dashboards/uid/$finality_dashboard_uid")
+    if ! printf '%s\n' "$dashboard_response" | jq -e \
+        --arg uid "$finality_dashboard_uid" \
+        --arg title "$finality_dashboard_title" \
+        --arg query "$finality_query" \
+        '.dashboard.uid == $uid and
+         .dashboard.title == $title and
+         any(.dashboard.panels[]?.targets[]?; .expr == $query)' \
+        >/dev/null; then
+        die "Grafana finality dashboard contract is invalid"
+    fi
+    pass "Grafana dashboard: $finality_dashboard_title"
+
+    advancing_clients=0
+    finality_attempt=0
+    while [ "$finality_attempt" -lt 12 ]; do
+        range_end=$(date +%s)
+        range_start=$((range_end - 900))
+        finality_range=$(curl --fail --silent --show-error --max-time 10 \
+            --get "http://127.0.0.1:$prometheus_port/api/v1/query_range" \
+            --data-urlencode "query=$finality_query" \
+            --data-urlencode "start=$range_start" \
+            --data-urlencode "end=$range_end" \
+            --data-urlencode 'step=15')
+        advancing_clients=$(printf '%s\n' "$finality_range" | jq -er '
+            [.data.result[]
+             | select((.values | length) >= 2)
+             | select(
+                 (.values | map(.[1] | tonumber) | max) >
+                 (.values | map(.[1] | tonumber) | min)
+               )
+             | .metric.client_name]
+            | map(select(type == "string" and length > 0))
+            | unique
+            | length')
+        if [ "$advancing_clients" -ge 2 ]; then
+            break
+        fi
+        finality_attempt=$((finality_attempt + 1))
+        if [ "$finality_attempt" -lt 12 ]; then
+            sleep 5
+        fi
+    done
+    if [ "$advancing_clients" -lt 2 ]; then
+        die "Finality did not advance for two beacon clients within 60 seconds of metric polling"
+    fi
+    pass "Finality advanced in the dashboard range for $advancing_clients beacon clients"
+}
+
+provision_finality_dashboard() {
+    if [ ! -r "$finality_dashboard" ]; then
+        die "Cannot read Grafana dashboard: $finality_dashboard"
+    fi
+    if ! jq -e \
+        --arg uid "$finality_dashboard_uid" \
+        --arg title "$finality_dashboard_title" \
+        '.id == null and .uid == $uid and .title == $title' \
+        "$finality_dashboard" >/dev/null; then
+        die "Tracked Grafana dashboard has an invalid identity"
+    fi
+
+    dashboard_import=$(jq -c \
+        '{dashboard: ., overwrite: true, message: "Provisioned by Ethquake"}' \
+        "$finality_dashboard" |
+        curl --fail --silent --show-error --max-time 10 \
+            --header 'Content-Type: application/json' \
+            --data-binary @- \
+            "http://127.0.0.1:$grafana_port/api/dashboards/db")
+    imported_status=$(printf '%s\n' "$dashboard_import" | jq -er '.status')
+    imported_uid=$(printf '%s\n' "$dashboard_import" | jq -er '.uid')
+    if [ "$imported_status" != "success" ] || \
+        [ "$imported_uid" != "$finality_dashboard_uid" ]; then
+        die "Grafana finality dashboard import failed"
+    fi
+    pass "Provisioned Grafana dashboard: $finality_dashboard_title"
 }
 
 verify_devnet() {
@@ -276,6 +357,9 @@ devnet_up() {
     fi
 
     assert_global_context "$initial_global_context"
+    "$access_script" forward-start \
+        grafana "$enclave" "$grafana_service" "$grafana_port"
+    provision_finality_dashboard
     verify_devnet
 }
 
