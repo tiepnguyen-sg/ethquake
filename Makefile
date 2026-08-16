@@ -1,9 +1,11 @@
 SHELL := /bin/sh
 
 ETHQUAKE_LOCAL_BIN ?= $(HOME)/.local/bin
+GO ?= go
 
 .PHONY: preflight verify-images access-start access-stop access-status \
-	access-smoke kurtosis devnet-up devnet-down devnet-status devnet-verify
+	access-smoke kurtosis devnet-up devnet-down devnet-status devnet-verify \
+	go-preflight fmt fmt-check test test-race test-e2e vet build verify
 preflight:
 	@PATH="$(ETHQUAKE_LOCAL_BIN):$(PATH)" ./scripts/devnet/preflight.sh
 
@@ -36,3 +38,38 @@ devnet-status:
 
 devnet-verify:
 	@./scripts/devnet/devnet.sh verify
+
+go-preflight:
+	@GO="$(GO)" ./scripts/toolchain/preflight.sh
+
+fmt: go-preflight
+	@files="$$(find cmd internal -name '*.go' -type f)"; \
+	if [ -n "$$files" ]; then $(GO)fmt -w $$files; fi
+
+fmt-check: go-preflight
+	@files="$$(find cmd internal -name '*.go' -type f)"; \
+	unformatted=""; \
+	if [ -n "$$files" ]; then unformatted="$$($(GO)fmt -l $$files)"; fi; \
+	if [ -n "$$unformatted" ]; then \
+		printf '[FAIL] Go files require formatting:\n%s\n' "$$unformatted" >&2; \
+		exit 1; \
+	fi; \
+	printf '[PASS] Go formatting\n'
+
+test: go-preflight
+	@GOTOOLCHAIN=local $(GO) test ./...
+
+test-race: go-preflight
+	@GOTOOLCHAIN=local $(GO) test -race ./...
+
+test-e2e: go-preflight
+	@GO="$(GO)" ./scripts/observer/e2e.sh
+
+vet: go-preflight
+	@GOTOOLCHAIN=local $(GO) vet ./...
+
+build: go-preflight
+	@mkdir -p bin
+	@CGO_ENABLED=0 GOTOOLCHAIN=local $(GO) build -trimpath -o bin/ethquake ./cmd/ethquake
+
+verify: fmt-check test vet build

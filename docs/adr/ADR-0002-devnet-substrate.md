@@ -30,9 +30,10 @@ ports are not published to the host.
 
 Ethquake automation discovers target Services from the enclave namespace and
 stable labels, then creates explicit Kubernetes port-forwards bound to
-`127.0.0.1` using the repository-local kubeconfig. The initial allowlist is the
-Beacon API, Prometheus, and Grafana. Every forward has explicit ownership,
-lifecycle, and cleanup. Wildcard listeners are prohibited.
+`127.0.0.1` using the repository-local kubeconfig. The allowlist is the Beacon
+API, execution `newHeads` WebSocket, Prometheus, and Grafana; the execution
+endpoint was added for the standalone Phase 2 Observer. Every forward has
+explicit ownership, lifecycle, and cleanup. Wildcard listeners are prohibited.
 
 Phase 1 and Phase 2 accept the upstream package's transitive mutable references
 as a documented limitation. No Phase 3 evidence run may begin until the full

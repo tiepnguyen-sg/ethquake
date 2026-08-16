@@ -1,0 +1,45 @@
+{
+  "beacon_observations": [
+    {
+      "timestamp": "2026-08-16T18:21:45Z",
+      "target": "lighthouse",
+      "head": {"slot": 285, "root": "0xe1b8af2aedb0091bd5b4f0906578ef3e889ccd46c33aee010c12a74b524190e9", "parent_root": "0x6b7e4e89b8040be6c18841e715506b56430096356dbcaed35ff1e6845f8ac83b", "canonical": true, "execution_optimistic": false},
+      "finality": {"epoch": 6, "root": "0xf5b36247ae3a452d4389c51e2beb998205b494d3371303efc99a5a107144fc14", "execution_optimistic": false},
+      "finality_lag_slots": 93
+    },
+    {
+      "timestamp": "2026-08-16T18:28:47.509309Z",
+      "target": "lighthouse",
+      "head": {"slot": 319, "root": "0x415f6a8b6cc92d669f1cafa0d75fee1da6556e299979024c41342ec80359e7d2", "parent_root": "0x8f1264ca2832046f7d81eb3fcf54eaad0e56f5a2afa8224d5ddb883fc94107b9", "canonical": true, "execution_optimistic": false},
+      "finality": {"epoch": 7, "root": "0xd715ad06710b289ebf59eaec81a3af86f1c4f533791c179fa8b91b67264bdaa8", "execution_optimistic": false},
+      "finality_lag_slots": 95
+    },
+    {
+      "timestamp": "2026-08-16T18:21:45.567473Z",
+      "target": "teku",
+      "head": {"slot": 285, "root": "0xe1b8af2aedb0091bd5b4f0906578ef3e889ccd46c33aee010c12a74b524190e9", "parent_root": "0x6b7e4e89b8040be6c18841e715506b56430096356dbcaed35ff1e6845f8ac83b", "canonical": true, "execution_optimistic": false},
+      "finality": {"epoch": 6, "root": "0xf5b36247ae3a452d4389c51e2beb998205b494d3371303efc99a5a107144fc14", "execution_optimistic": false},
+      "finality_lag_slots": 93
+    },
+    {
+      "timestamp": "2026-08-16T18:28:47.509487Z",
+      "target": "teku",
+      "head": {"slot": 319, "root": "0x415f6a8b6cc92d669f1cafa0d75fee1da6556e299979024c41342ec80359e7d2", "parent_root": "0x8f1264ca2832046f7d81eb3fcf54eaad0e56f5a2afa8224d5ddb883fc94107b9", "canonical": true, "execution_optimistic": false},
+      "finality": {"epoch": 7, "root": "0xd715ad06710b289ebf59eaec81a3af86f1c4f533791c179fa8b91b67264bdaa8", "execution_optimistic": false},
+      "finality_lag_slots": 95
+    }
+  ],
+  "head_comparisons": [
+    {
+      "timestamp": "2026-08-16T18:28:47.509487Z",
+      "slot": 319,
+      "roots": {
+        "lighthouse": "0x415f6a8b6cc92d669f1cafa0d75fee1da6556e299979024c41342ec80359e7d2",
+        "teku": "0x415f6a8b6cc92d669f1cafa0d75fee1da6556e299979024c41342ec80359e7d2"
+      },
+      "agreement": true
+    }
+  ],
+  "measurement_gaps": [],
+  "reorgs": []
+}

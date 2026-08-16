@@ -460,18 +460,32 @@ validate_endpoint() {
                     ;;
             esac
             endpoint_port_name=http
+            expected_client_type=beacon
+            ;;
+        execution-ws)
+            case "$service_id" in
+                el-[a-z0-9-]*)
+                    ;;
+                *)
+                    die "Execution WebSocket service ID must start with 'el-'"
+                    ;;
+            esac
+            endpoint_port_name=ws
+            expected_client_type=execution
             ;;
         prometheus)
             if [ "$service_id" != "prometheus" ]; then
                 die "Prometheus endpoint requires service ID 'prometheus'"
             fi
             endpoint_port_name=http
+            expected_client_type=
             ;;
         grafana)
             if [ "$service_id" != "grafana" ]; then
                 die "Grafana endpoint requires service ID 'grafana'"
             fi
             endpoint_port_name=http
+            expected_client_type=
             ;;
         *)
             die "Endpoint is not allowlisted: $endpoint"
@@ -529,16 +543,17 @@ forward_start() {
     service_resource=$(printf '%s\n' "$service_resources" | awk 'NF { print; exit }')
     service_name=${service_resource#service/}
 
-    if [ "$endpoint" = "beacon-api" ]; then
+    if [ -n "$expected_client_type" ]; then
         client_types=$(kubectl --kubeconfig="$repository_kubeconfig" \
             --namespace "$namespace" get pods --selector "$selector" \
             --output jsonpath='{range .items[*]}{.metadata.labels.kurtosistech\.com\.custom/ethereum-package\.client-type}{"\n"}{end}')
-        beacon_workloads=$(printf '%s\n' "$client_types" |
-            awk '$0 == "beacon" { count += 1 } END { print count + 0 }')
+        matching_workloads=$(printf '%s\n' "$client_types" |
+            awk -v expected="$expected_client_type" \
+                '$0 == expected { count += 1 } END { print count + 0 }')
         workload_count=$(printf '%s\n' "$client_types" |
             awk 'NF { count += 1 } END { print count + 0 }')
-        if [ "$workload_count" -ne 1 ] || [ "$beacon_workloads" -ne 1 ]; then
-            die "Service $service_name is not labeled as an Ethereum beacon client"
+        if [ "$workload_count" -ne 1 ] || [ "$matching_workloads" -ne 1 ]; then
+            die "Service $service_name is not labeled as an Ethereum $expected_client_type client"
         fi
     fi
 
@@ -672,7 +687,7 @@ usage() {
         '       access.sh forward-start ENDPOINT ENCLAVE SERVICE_ID LOCAL_PORT' \
         '       access.sh forward-stop ENDPOINT SERVICE_ID' \
         '' \
-        'Allowlisted endpoints: beacon-api, prometheus, grafana'
+        'Allowlisted endpoints: beacon-api, execution-ws, prometheus, grafana'
 }
 
 command_name=${1:-}
