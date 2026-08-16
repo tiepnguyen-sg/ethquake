@@ -22,6 +22,18 @@ Automation will target only the named Ethquake cluster and enclave. It will
 reject unexpected Kubernetes contexts and public Ethereum networks and provide
 idempotent teardown.
 
+For local access, the official Kurtosis gateway runs inside a constrained
+container. Its only host exposure is `127.0.0.1:9710`, and Kurtosis CLI control
+operations run inside that container. Docker provides process isolation only;
+Kubernetes remains the selected Kurtosis backend. Kurtosis dynamic user-service
+ports are not published to the host.
+
+Ethquake automation discovers target Services from the enclave namespace and
+stable labels, then creates explicit Kubernetes port-forwards bound to
+`127.0.0.1` using the repository-local kubeconfig. The initial allowlist is the
+Beacon API, Prometheus, and Grafana. Every forward has explicit ownership,
+lifecycle, and cleanup. Wildcard listeners are prohibited.
+
 ## Alternatives
 
 Docker-only Kurtosis does not satisfy the Kubernetes requirement.
@@ -38,3 +50,6 @@ results are never presented as experimental findings.
 
 Kurtosis gateway lifecycle, image availability, and container digests must be
 verified during the next increments.
+
+Local Kubernetes service access is intentionally managed by Ethquake automation
+instead of Kurtosis dynamic host port publication.
