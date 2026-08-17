@@ -1,0 +1,6 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethquake.dev/schemas/realized-split-v1alpha1.json",
+  "title": "Ethquake Realized Split v1alpha1",
+  "$ref": "run-v1alpha1.json#/$defs/realizedSplit"
+}

@@ -17,3 +17,8 @@ Phase 3 writes one `ethquake.run/v1alpha1` manifest per committed run under
 `<evidence-root>/analysis/<scenario-name>-analysis/`. Session metadata and the
 dependency lock are stored at the evidence root. The root is host-owned and
 must not share the lifecycle of the experiment cluster.
+
+Each run's `metadata.json` follows `ethquake.metadata/v1alpha1`, and its
+`realized-split.json` follows the standalone realized-split schema. Before
+analysis, Ethquake verifies these contracts and their semantic consistency with
+the checksum-protected manifest and executed scenario.

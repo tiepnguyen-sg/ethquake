@@ -1,0 +1,181 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethquake.dev/schemas/run-metadata-v1alpha1.json",
+  "title": "Ethquake Run Metadata v1alpha1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "run_id",
+    "scenario_sha256",
+    "chain_id",
+    "runtime_specs",
+    "runtime_genesis",
+    "placements",
+    "dependencies",
+    "order_seed",
+    "run_order",
+    "fault_deadman_seconds"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "ethquake.metadata/v1alpha1"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^(control|fault)-[1-3]$"
+    },
+    "scenario_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "chain_id": {
+      "const": 3151908
+    },
+    "runtime_specs": {
+      "type": "object",
+      "minProperties": 4,
+      "maxProperties": 4,
+      "additionalProperties": {
+        "$ref": "#/$defs/runtimeSpec"
+      }
+    },
+    "runtime_genesis": {
+      "type": "object",
+      "minProperties": 4,
+      "maxProperties": 4,
+      "additionalProperties": {
+        "$ref": "#/$defs/runtimeGenesis"
+      }
+    },
+    "placements": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "$ref": "#/$defs/placement"
+      }
+    },
+    "dependencies": {
+      "$ref": "run-v1alpha1.json#/$defs/dependencies"
+    },
+    "order_seed": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_order": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "pattern": "^(control|fault)-[1-3]$"
+      }
+    },
+    "fault_deadman_seconds": {
+      "type": "integer",
+      "minimum": 0
+    }
+  },
+  "$defs": {
+    "runtimeSpec": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "seconds_per_slot",
+        "slots_per_epoch",
+        "fork_epochs"
+      ],
+      "properties": {
+        "seconds_per_slot": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "slots_per_epoch": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "fork_epochs": {
+          "type": "object",
+          "minProperties": 1,
+          "additionalProperties": {
+            "type": "string",
+            "pattern": "^[0-9]+$"
+          }
+        }
+      }
+    },
+    "runtimeGenesis": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "time",
+        "slot",
+        "validators_root",
+        "fork_version"
+      ],
+      "properties": {
+        "time": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "slot": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "validators_root": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{64}$"
+        },
+        "fork_version": {
+          "type": "string",
+          "pattern": "^0x[0-9a-f]{8}$"
+        }
+      }
+    },
+    "placement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "participant_id",
+        "target",
+        "pod",
+        "node",
+        "node_pool",
+        "machine_type",
+        "resource_policy"
+      ],
+      "properties": {
+        "participant_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "pod": {
+          "type": "string",
+          "minLength": 1
+        },
+        "node": {
+          "type": "string",
+          "minLength": 1
+        },
+        "node_pool": {
+          "type": "string",
+          "minLength": 1
+        },
+        "machine_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resource_policy": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

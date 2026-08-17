@@ -188,14 +188,8 @@ func validRuns(value scenario.Scenario, lighthouseRecovery, tekuRecovery []uint6
 			PrimaryMeasurementComplete:  true,
 			RecoveryMeasurementComplete: true,
 			Targets:                     targets,
-			RealizedSplit: topology.RealizedSplit{
-				WithinTolerance: true,
-				Groups: []topology.GroupWeight{
-					{Name: "a", RequestedShare: 0.5, RealizedShare: 0.5},
-					{Name: "b", RequestedShare: 0.5, RealizedShare: 0.5},
-				},
-			},
-			Dependencies: validDependencies(),
+			RealizedSplit:               validRealizedSplit(value),
+			Dependencies:                validDependencies(),
 			Confounders: Confounders{
 				ResourcesEqual:          true,
 				NodePlacementControlled: true,
@@ -204,6 +198,31 @@ func validRuns(value scenario.Scenario, lighthouseRecovery, tekuRecovery []uint6
 		})
 	}
 	return runs
+}
+
+func validRealizedSplit(value scenario.Scenario) topology.RealizedSplit {
+	result := topology.RealizedSplit{
+		SplitBy:            value.Spec.Fault.SplitBy,
+		TotalActiveBalance: 128,
+		WithinTolerance:    true,
+		ToleranceFraction:  value.Spec.Thresholds.RealizedSplitTolerance,
+	}
+	for _, participant := range value.Spec.Topology.Participants {
+		result.Participants = append(result.Participants, topology.ParticipantWeight{
+			ParticipantID:    participant.ID,
+			ValidatorCount:   participant.ValidatorCount,
+			EffectiveBalance: 32,
+		})
+	}
+	for _, group := range value.Spec.Fault.Groups {
+		result.Groups = append(result.Groups, topology.GroupWeight{
+			Name:             group.Name,
+			RequestedShare:   group.Share,
+			RealizedShare:    0.5,
+			EffectiveBalance: 64,
+		})
+	}
+	return result
 }
 
 func validDependencies() DependencyMetadata {

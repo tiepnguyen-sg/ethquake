@@ -260,8 +260,11 @@ func validateRuns(value scenario.Scenario, runs []RunSummary) ([]RunSummary, map
 		if run.Condition != condition || run.Repetition != repetition {
 			return nil, nil, nil, fmt.Errorf("run %q condition or repetition does not match its ID", run.RunID)
 		}
-		if err := validateDependencyMetadata(run.Dependencies); err != nil {
+		if err := ValidateDependencyMetadata(run.Dependencies); err != nil {
 			return nil, nil, nil, fmt.Errorf("run %q dependency closure: %w", run.RunID, err)
+		}
+		if err := topology.ValidateRealizedSplit(value, run.RealizedSplit); err != nil {
+			return nil, nil, nil, fmt.Errorf("run %q realized split: %w", run.RunID, err)
 		}
 		if referenceDependencies == nil {
 			copy := run.Dependencies
@@ -445,7 +448,7 @@ func parseRunID(runID string) (Condition, uint64, error) {
 	return Condition(conditionText), uint64(repetitionText[0] - '0'), nil
 }
 
-func validateDependencyMetadata(metadata DependencyMetadata) error {
+func ValidateDependencyMetadata(metadata DependencyMetadata) error {
 	if !isLowerHex(metadata.EthereumPackageRevision, 40) {
 		return errors.New("ethereum-package revision must be a full commit SHA")
 	}

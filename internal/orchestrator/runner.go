@@ -27,28 +27,12 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-const metadataSchemaVersion = "ethquake.metadata/v1alpha1"
-
 type ChainIDClient interface {
 	ChainID(context.Context) (uint64, error)
 }
 
 type ValidatorClient interface {
 	Validators(context.Context) ([]beacon.Validator, error)
-}
-
-type Metadata struct {
-	SchemaVersion       string                        `json:"schema_version"`
-	RunID               string                        `json:"run_id"`
-	ScenarioSHA256      string                        `json:"scenario_sha256"`
-	ChainID             uint64                        `json:"chain_id"`
-	RuntimeSpecs        map[string]beacon.Spec        `json:"runtime_specs"`
-	RuntimeGenesis      map[string]beacon.Genesis     `json:"runtime_genesis"`
-	Placements          []topology.Placement          `json:"placements"`
-	Dependencies        experiment.DependencyMetadata `json:"dependencies"`
-	OrderSeed           string                        `json:"order_seed"`
-	RunOrder            []string                      `json:"run_order"`
-	FaultDeadmanSeconds uint64                        `json:"fault_deadman_seconds"`
 }
 
 type Config struct {
@@ -280,8 +264,8 @@ func Run(ctx context.Context, config Config) (_ experiment.RunSummary, returnErr
 	if err := config.Artifacts.WriteJSON("manifest.json", summary); err != nil {
 		return experiment.RunSummary{}, err
 	}
-	metadata := Metadata{
-		SchemaVersion:  metadataSchemaVersion,
+	metadata := experiment.RunMetadata{
+		SchemaVersion:  experiment.MetadataSchemaVersion,
 		RunID:          config.RunID,
 		ScenarioSHA256: sha256Bytes(config.ScenarioYAML),
 		ChainID:        chainID,
@@ -347,6 +331,9 @@ func validateConfig(config Config) (experiment.Condition, uint64, error) {
 	}
 	if err := topology.ValidatePlacements(config.Scenario, config.Placements); err != nil {
 		return "", 0, err
+	}
+	if err := experiment.ValidateDependencyMetadata(config.Dependencies); err != nil {
+		return "", 0, fmt.Errorf("validate dependency metadata: %w", err)
 	}
 	return condition, repetition, nil
 }

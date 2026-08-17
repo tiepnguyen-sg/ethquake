@@ -7,11 +7,16 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strconv"
 	"strings"
 
+	"github.com/tiepnguyen-sg/ethquake/internal/beacon"
 	"github.com/tiepnguyen-sg/ethquake/internal/scenario"
+	"github.com/tiepnguyen-sg/ethquake/internal/topology"
 )
 
 var checksummedRunArtifacts = []string{
@@ -58,25 +63,220 @@ func LoadRunSummaries(root string, value scenario.Scenario) ([]RunSummary, error
 		if err := verifyRunChecksums(runDirectory); err != nil {
 			return nil, fmt.Errorf("verify run %q: %w", runID, err)
 		}
-		path := filepath.Join(runDirectory, "manifest.json")
-		info, err := os.Lstat(path)
+		run, err := loadRunEvidence(runDirectory, runID, value)
 		if err != nil {
-			return nil, fmt.Errorf("inspect run manifest %q: %w", runID, err)
-		}
-		if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
-			return nil, fmt.Errorf("run manifest %q must be a regular file, not a symlink", runID)
-		}
-		data, err := os.ReadFile(path)
-		if err != nil {
-			return nil, fmt.Errorf("read run manifest %q: %w", runID, err)
-		}
-		run, err := parseRunSummary(data)
-		if err != nil {
-			return nil, fmt.Errorf("parse run manifest %q: %w", runID, err)
+			return nil, fmt.Errorf("validate run %q evidence: %w", runID, err)
 		}
 		runs = append(runs, run)
 	}
 	return runs, nil
+}
+
+func loadRunEvidence(runDirectory, expectedRunID string, expectedScenario scenario.Scenario) (RunSummary, error) {
+	manifestData, err := readRegularArtifact(runDirectory, "manifest.json")
+	if err != nil {
+		return RunSummary{}, err
+	}
+	run, err := parseRunSummary(manifestData)
+	if err != nil {
+		return RunSummary{}, fmt.Errorf("parse manifest.json: %w", err)
+	}
+	if run.RunID != expectedRunID {
+		return RunSummary{}, fmt.Errorf("manifest run_id %q does not match directory %q", run.RunID, expectedRunID)
+	}
+
+	scenarioData, err := readRegularArtifact(runDirectory, "scenario.yaml")
+	if err != nil {
+		return RunSummary{}, err
+	}
+	executedScenario, err := scenario.Parse(scenarioData)
+	if err != nil {
+		return RunSummary{}, fmt.Errorf("parse scenario.yaml: %w", err)
+	}
+	if !reflect.DeepEqual(executedScenario, expectedScenario) {
+		return RunSummary{}, errors.New("executed scenario does not match the analysis scenario")
+	}
+
+	metadataData, err := readRegularArtifact(runDirectory, "metadata.json")
+	if err != nil {
+		return RunSummary{}, err
+	}
+	metadata, err := parseStrictJSON[RunMetadata](metadataData, "metadata.json")
+	if err != nil {
+		return RunSummary{}, err
+	}
+	if err := validateRunMetadata(metadata, run, expectedScenario, scenarioData); err != nil {
+		return RunSummary{}, fmt.Errorf("validate metadata.json: %w", err)
+	}
+
+	splitData, err := readRegularArtifact(runDirectory, "realized-split.json")
+	if err != nil {
+		return RunSummary{}, err
+	}
+	split, err := parseStrictJSON[topology.RealizedSplit](splitData, "realized-split.json")
+	if err != nil {
+		return RunSummary{}, err
+	}
+	if !reflect.DeepEqual(split, run.RealizedSplit) {
+		return RunSummary{}, errors.New("realized-split.json does not match manifest.json")
+	}
+	if err := topology.ValidateRealizedSplit(expectedScenario, split); err != nil {
+		return RunSummary{}, fmt.Errorf("validate realized-split.json: %w", err)
+	}
+	if err := requireNonemptyRegularArtifact(runDirectory, "raw-timeseries.jsonl"); err != nil {
+		return RunSummary{}, err
+	}
+	return run, nil
+}
+
+func validateRunMetadata(metadata RunMetadata, run RunSummary, value scenario.Scenario, scenarioData []byte) error {
+	if metadata.SchemaVersion != MetadataSchemaVersion {
+		return fmt.Errorf("unsupported schema_version %q", metadata.SchemaVersion)
+	}
+	if metadata.RunID != run.RunID {
+		return fmt.Errorf("run_id %q does not match manifest %q", metadata.RunID, run.RunID)
+	}
+	digest := sha256.Sum256(scenarioData)
+	if metadata.ScenarioSHA256 != fmt.Sprintf("%x", digest[:]) {
+		return errors.New("scenario_sha256 does not match scenario.yaml")
+	}
+	if metadata.ChainID != value.Spec.Target.ChainID {
+		return fmt.Errorf("chain_id %d does not match scenario target %d", metadata.ChainID, value.Spec.Target.ChainID)
+	}
+	if metadata.OrderSeed != value.Spec.Methodology.OrderSeed || !reflect.DeepEqual(metadata.RunOrder, value.Spec.Methodology.RunOrder) {
+		return errors.New("committed run order metadata does not match the scenario")
+	}
+	if !dependencyMetadataEqual(metadata.Dependencies, run.Dependencies) {
+		return errors.New("dependency metadata does not match manifest.json")
+	}
+	if err := ValidateDependencyMetadata(metadata.Dependencies); err != nil {
+		return fmt.Errorf("validate dependency metadata: %w", err)
+	}
+	if err := topology.ValidatePlacements(value, metadata.Placements); err != nil {
+		return fmt.Errorf("validate placements: %w", err)
+	}
+	spec, err := validateRuntimeMetadata(metadata, value)
+	if err != nil {
+		return err
+	}
+	condition, _, err := parseRunID(run.RunID)
+	if err != nil {
+		return err
+	}
+	if condition == ConditionControl {
+		if metadata.FaultDeadmanSeconds != 0 {
+			return errors.New("control run records a non-zero fault deadman duration")
+		}
+		return nil
+	}
+	deadmanEpochs := value.Spec.Fault.DurationEpochs + 2
+	deadmanSlots, overflow := multiplyUint64(deadmanEpochs, spec.SlotsPerEpoch)
+	if overflow {
+		return errors.New("fault deadman slot calculation overflows uint64")
+	}
+	expectedSeconds, overflow := multiplyUint64(deadmanSlots, spec.SecondsPerSlot)
+	if overflow || metadata.FaultDeadmanSeconds != expectedSeconds {
+		return fmt.Errorf("fault_deadman_seconds %d does not match runtime-derived value %d", metadata.FaultDeadmanSeconds, expectedSeconds)
+	}
+	return nil
+}
+
+func validateRuntimeMetadata(metadata RunMetadata, value scenario.Scenario) (beacon.Spec, error) {
+	if len(metadata.RuntimeSpecs) != len(value.Spec.Topology.Participants) || len(metadata.RuntimeGenesis) != len(value.Spec.Topology.Participants) {
+		return beacon.Spec{}, errors.New("runtime spec and genesis metadata must cover every participant target")
+	}
+	var referenceSpec beacon.Spec
+	var referenceGenesis beacon.Genesis
+	for index, participant := range value.Spec.Topology.Participants {
+		spec, specExists := metadata.RuntimeSpecs[participant.BeaconTarget]
+		genesis, genesisExists := metadata.RuntimeGenesis[participant.BeaconTarget]
+		if !specExists || !genesisExists {
+			return beacon.Spec{}, fmt.Errorf("runtime metadata is missing target %q", participant.BeaconTarget)
+		}
+		if spec.SecondsPerSlot == 0 || spec.SlotsPerEpoch == 0 || len(spec.ForkEpochs) == 0 {
+			return beacon.Spec{}, fmt.Errorf("target %q has incomplete runtime spec metadata", participant.BeaconTarget)
+		}
+		for name, epoch := range spec.ForkEpochs {
+			parsed, err := strconv.ParseUint(epoch, 10, 64)
+			if name == "" || err != nil || strconv.FormatUint(parsed, 10) != epoch {
+				return beacon.Spec{}, fmt.Errorf("target %q has invalid fork epoch %q=%q", participant.BeaconTarget, name, epoch)
+			}
+		}
+		if genesis.Time == 0 || !isPrefixedLowerHex(genesis.ValidatorsRoot, 64) || !isPrefixedLowerHex(genesis.ForkVersion, 8) {
+			return beacon.Spec{}, fmt.Errorf("target %q has incomplete runtime genesis metadata", participant.BeaconTarget)
+		}
+		if index == 0 {
+			referenceSpec = spec
+			referenceGenesis = genesis
+			continue
+		}
+		if !spec.Compatible(referenceSpec) || !referenceSpec.Compatible(spec) {
+			return beacon.Spec{}, fmt.Errorf("target %q runtime spec conflicts with other targets", participant.BeaconTarget)
+		}
+		if !genesis.Compatible(referenceGenesis) {
+			return beacon.Spec{}, fmt.Errorf("target %q genesis conflicts with other targets", participant.BeaconTarget)
+		}
+	}
+	return referenceSpec, nil
+}
+
+func readRegularArtifact(runDirectory, name string) ([]byte, error) {
+	path := filepath.Join(runDirectory, name)
+	info, err := os.Lstat(path)
+	if err != nil {
+		return nil, fmt.Errorf("inspect %s: %w", name, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return nil, fmt.Errorf("%s must be a regular file, not a symlink", name)
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("read %s: %w", name, err)
+	}
+	return data, nil
+}
+
+func requireNonemptyRegularArtifact(runDirectory, name string) error {
+	path := filepath.Join(runDirectory, name)
+	info, err := os.Lstat(path)
+	if err != nil {
+		return fmt.Errorf("inspect %s: %w", name, err)
+	}
+	if info.Mode()&os.ModeSymlink != 0 || !info.Mode().IsRegular() {
+		return fmt.Errorf("%s must be a regular file, not a symlink", name)
+	}
+	if info.Size() == 0 {
+		return fmt.Errorf("%s must not be empty", name)
+	}
+	return nil
+}
+
+func parseStrictJSON[T any](data []byte, name string) (T, error) {
+	var value T
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&value); err != nil {
+		return value, fmt.Errorf("decode %s: %w", name, err)
+	}
+	var trailing any
+	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
+		if err == nil {
+			return value, fmt.Errorf("%s must contain exactly one JSON value", name)
+		}
+		return value, fmt.Errorf("decode trailing %s: %w", name, err)
+	}
+	return value, nil
+}
+
+func multiplyUint64(left, right uint64) (uint64, bool) {
+	if left != 0 && right > math.MaxUint64/left {
+		return 0, true
+	}
+	return left * right, false
+}
+
+func isPrefixedLowerHex(value string, digits int) bool {
+	return strings.HasPrefix(value, "0x") && isLowerHex(value[2:], digits)
 }
 
 func verifyRunChecksums(runDirectory string) error {
@@ -142,18 +342,5 @@ func verifyRunChecksums(runDirectory string) error {
 }
 
 func parseRunSummary(data []byte) (RunSummary, error) {
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	var value RunSummary
-	if err := decoder.Decode(&value); err != nil {
-		return RunSummary{}, err
-	}
-	var trailing any
-	if err := decoder.Decode(&trailing); !errors.Is(err, io.EOF) {
-		if err == nil {
-			return RunSummary{}, errors.New("run manifest must contain exactly one JSON value")
-		}
-		return RunSummary{}, err
-	}
-	return value, nil
+	return parseStrictJSON[RunSummary](data, "run manifest")
 }
