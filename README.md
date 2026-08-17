@@ -70,15 +70,15 @@ Preparation downloads the official locked Helm archive into the ignored
 repository cache and verifies its checksum; it does not install a host tool or
 change user configuration.
 
-`make phase3-run` is the single evidence-session command. It requires explicit
-GCP project, zone, billing-budget, exact GKE version, and session variables,
-plus `ETHQUAKE_CLOUD_AUTHORIZED=I_ACCEPT_GCP_CHARGES_AND_TEARDOWN`. It creates
-an ephemeral GKE cluster, installs the pinned Chaos Mesh chart, executes the
-committed run order, writes evidence to `runs/`, analyzes Gate A then B then C,
-and always attempts exact-label cluster teardown from an `EXIT` trap.
+The Phase 3 cloud runner is being migrated to AWS under
+[ADR-0006](docs/adr/ADR-0006-phase3-cloud-provider.md). The existing
+`make phase3-run` implementation is retired and must not be used for evidence.
+No cloud experiment is authorized until its AWS replacement and
+account-specific preflight are implemented and verified.
 
-The cloud preflight requires an existing USD 20 budget with a 100% alert
-threshold. It verifies that the requested GKE patch is currently available in
-the selected zone. The script uses only a session-local kubeconfig and rejects
-occupied or non-loopback host access ports. No GCP experiment has run merely
-because this automation exists.
+The replacement preflight must verify the account plan, service eligibility,
+regional capacity for the required 16 vCPUs, Kubernetes version, budget alerts,
+ownership tags, session-local kubeconfig, and teardown trap before creating a
+cluster. The evidence-session workflow will continue to install the pinned
+Chaos Mesh chart, execute the committed run order, preserve evidence under
+`runs/`, and analyze Gate A then B then C.
