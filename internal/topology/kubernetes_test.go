@@ -9,8 +9,8 @@ import (
 	"github.com/tiepnguyen-sg/ethquake/internal/scenario"
 )
 
-func TestNewKubernetesAllowsOnlyAWSPhase3Context(t *testing.T) {
-	if _, err := NewKubernetes("kubectl", "kubeconfig", "ethquake-aws-phase3"); err != nil {
+func TestNewKubernetesAllowsOnlyGKEPhase3Context(t *testing.T) {
+	if _, err := NewKubernetes("kubectl", "kubeconfig", "gke-ethquake-phase3"); err != nil {
 		t.Fatalf("NewKubernetes() error = %v", err)
 	}
 	if _, err := NewKubernetes("kubectl", "kubeconfig", "untrusted-context"); err == nil {

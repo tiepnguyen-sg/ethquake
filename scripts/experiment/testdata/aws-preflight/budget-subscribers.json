@@ -1,8 +1,0 @@
-{
-  "Subscribers": [
-    {
-      "SubscriptionType": "EMAIL",
-      "Address": "owner@example.invalid"
-    }
-  ]
-}

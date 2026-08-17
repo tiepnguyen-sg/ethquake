@@ -1,0 +1,64 @@
+{
+  "skus": [
+    {
+      "category": {"resourceGroup": "CPU", "usageType": "OnDemand"},
+      "description": "E2 Instance Core running in Toronto",
+      "geoTaxonomy": {"regions": ["northamerica-northeast2"]},
+      "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 20000000, "units": "0"}}], "usageUnit": "h"}}]
+    },
+    {
+      "category": {"resourceGroup": "RAM", "usageType": "OnDemand"},
+      "description": "E2 Instance Ram running in Toronto",
+      "geoTaxonomy": {"regions": ["northamerica-northeast2"]},
+      "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 3000000, "units": "0"}}], "usageUnit": "GiBy.h"}}]
+    },
+    {
+      "category": {"resourceGroup": "CPU", "usageType": "Preemptible"},
+      "description": "Spot Preemptible N2 Instance Core running in Toronto",
+      "geoTaxonomy": {"regions": ["northamerica-northeast2"]},
+      "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 3000000, "units": "0"}}], "usageUnit": "h"}}]
+    },
+    {
+      "category": {"resourceGroup": "RAM", "usageType": "Preemptible"},
+      "description": "Spot Preemptible N2 Instance Ram running in Toronto",
+      "geoTaxonomy": {"regions": ["northamerica-northeast2"]},
+      "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 400000, "units": "0"}}], "usageUnit": "GiBy.h"}}]
+    },
+    {
+      "category": {"resourceGroup": "SSD", "usageType": "OnDemand"},
+      "description": "Balanced PD Capacity in Toronto",
+      "geoTaxonomy": {"regions": ["northamerica-northeast2"]},
+      "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 110000000, "units": "0"}}], "usageUnit": "GiBy.mo"}}]
+    },
+    {
+      "category": {"resourceGroup": "CPU", "usageType": "OnDemand"},
+      "description": "E2 Instance Core running in Americas",
+      "geoTaxonomy": {"regions": ["us-central1"]},
+      "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 20000000, "units": "0"}}], "usageUnit": "h"}}]
+    },
+    {
+      "category": {"resourceGroup": "RAM", "usageType": "OnDemand"},
+      "description": "E2 Instance Ram running in Americas",
+      "geoTaxonomy": {"regions": ["us-central1"]},
+      "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 3000000, "units": "0"}}], "usageUnit": "GiBy.h"}}]
+    },
+    {
+      "category": {"resourceGroup": "CPU", "usageType": "Preemptible"},
+      "description": "Spot Preemptible N2 Instance Core running in Americas",
+      "geoTaxonomy": {"regions": ["us-central1"]},
+      "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 20000000, "units": "0"}}], "usageUnit": "h"}}]
+    },
+    {
+      "category": {"resourceGroup": "RAM", "usageType": "Preemptible"},
+      "description": "Spot Preemptible N2 Instance Ram running in Americas",
+      "geoTaxonomy": {"regions": ["us-central1"]},
+      "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 2000000, "units": "0"}}], "usageUnit": "GiBy.h"}}]
+    },
+    {
+      "category": {"resourceGroup": "SSD", "usageType": "OnDemand"},
+      "description": "Balanced PD Capacity in Iowa",
+      "geoTaxonomy": {"regions": ["us-central1"]},
+      "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 100000000, "units": "0"}}], "usageUnit": "GiBy.mo"}}]
+    }
+  ]
+}

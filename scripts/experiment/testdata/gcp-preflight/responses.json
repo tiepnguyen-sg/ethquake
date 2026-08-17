@@ -1,0 +1,82 @@
+{
+  "accounts": [{"account": "owner@example.com", "status": "ACTIVE"}],
+  "project": {
+    "lifecycleState": "ACTIVE",
+    "name": "Ethquake Phase 3",
+    "projectId": "ethquake-test",
+    "projectNumber": "123456789012"
+  },
+  "billing": {
+    "billingAccountName": "billingAccounts/AAAAAA-BBBBBB-CCCCCC",
+    "billingEnabled": true,
+    "name": "projects/ethquake-test/billingInfo",
+    "projectId": "ethquake-test"
+  },
+  "budget": {
+    "amount": {"specifiedAmount": {"currencyCode": "VND", "units": "5500000"}},
+    "budgetFilter": {
+      "calendarPeriod": "MONTH",
+      "creditTypesTreatment": "EXCLUDE_ALL_CREDITS",
+      "projects": ["projects/123456789012"]
+    },
+    "displayName": "ethquake-phase3-gross-vnd-5500000",
+    "name": "billingAccounts/AAAAAA-BBBBBB-CCCCCC/budgets/test-budget",
+    "notificationsRule": {},
+    "thresholdRules": [
+      {"spendBasis": "CURRENT_SPEND", "thresholdPercent": 0.25},
+      {"spendBasis": "CURRENT_SPEND", "thresholdPercent": 0.5},
+      {"spendBasis": "CURRENT_SPEND", "thresholdPercent": 0.75},
+      {"spendBasis": "CURRENT_SPEND", "thresholdPercent": 0.9},
+      {"spendBasis": "CURRENT_SPEND", "thresholdPercent": 1},
+      {"spendBasis": "FORECASTED_SPEND", "thresholdPercent": 1}
+    ]
+  },
+  "billingIam": {
+    "bindings": [
+      {
+        "members": ["user:owner@example.com"],
+        "role": "roles/billing.admin"
+      }
+    ]
+  },
+  "region": {
+    "name": "northamerica-northeast2",
+    "quotas": [
+      {"limit": 32, "metric": "CPUS", "usage": 0},
+      {"limit": 2048, "metric": "DISKS_TOTAL_GB", "usage": 0},
+      {"limit": 5, "metric": "IN_USE_ADDRESSES", "usage": 0},
+      {"limit": 16, "metric": "PREEMPTIBLE_CPUS", "usage": 0}
+    ],
+    "status": "UP",
+    "zones": [
+      "https://www.googleapis.com/compute/v1/projects/ethquake-test/zones/northamerica-northeast2-a"
+    ]
+  },
+  "projectQuota": {
+    "quotas": [{"limit": 20, "metric": "CPUS_ALL_REGIONS", "usage": 0}]
+  },
+  "machineTypes": [
+    {
+      "guestCpus": 4,
+      "memoryMb": 16384,
+      "name": "e2-standard-4",
+      "zone": "https://www.googleapis.com/compute/v1/projects/ethquake-test/zones/northamerica-northeast2-a"
+    },
+    {
+      "guestCpus": 4,
+      "memoryMb": 16384,
+      "name": "n2-standard-4",
+      "zone": "https://www.googleapis.com/compute/v1/projects/ethquake-test/zones/northamerica-northeast2-a"
+    }
+  ],
+  "serverConfig": {
+    "validMasterVersions": ["1.36.3-gke.1537000"],
+    "validNodeVersions": ["1.36.3-gke.1537000"]
+  },
+  "regions": [
+    {"name": "northamerica-northeast2", "status": "UP"},
+    {"name": "us-central1", "status": "UP"},
+    {"name": "us-west8", "status": "DOWN"}
+  ],
+  "empty": []
+}

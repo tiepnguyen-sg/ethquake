@@ -1,6 +1,6 @@
 # ADR-0006: Phase 3 cloud provider
 
-Status: Accepted
+Status: Superseded by ADR-0007
 
 ## Context
 
@@ -62,3 +62,7 @@ against an activated account yet.
 
 The scenario, Observer, fault backend, analysis, reports, and static dependency
 preparation remain provider-independent and reusable.
+
+The owner later activated a new paid GCP billing account and authorized GCP for
+Phase 3. ADR-0007 records the replacement decision; this ADR remains the
+historical reason the temporary AWS path existed.

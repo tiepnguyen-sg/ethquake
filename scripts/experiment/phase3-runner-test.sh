@@ -18,7 +18,7 @@ first_output="$test_root/first.out"
 second_output="$test_root/second.out"
 mkdir -p "$fake_bin"
 
-for cloud_command in aws; do
+for cloud_command in gcloud curl; do
     command_path="$fake_bin/$cloud_command"
     {
         printf '#!/bin/sh\n'
@@ -42,12 +42,17 @@ if ! cmp -s "$first_output" "$second_output"; then
     die "dry-run output is not deterministic"
 fi
 for expected in \
-    '[PLAN] provider=aws' \
+    '[PLAN] provider=gcp' \
     '[PLAN] participants=4' \
-    '[PLAN] required_vcpus=16' \
+    '[PLAN] required_preemptible_vcpus=16' \
+    '[PLAN] required_total_vcpus=20' \
+    '[PLAN] region=northamerica-northeast2' \
+    '[PLAN] zone=northamerica-northeast2-a' \
+    '[PLAN] cluster=ethquake-p3-local-check' \
+    '[PLAN] network=ethquake-p3-local-check-net' \
+    '[PLAN] subnet=ethquake-p3-local-check-subnet' \
     '[PLAN] cloud_api_calls=false' \
-    '[PLAN] resource_creation=false' \
-    '[PLAN] compute_substrate=unselected'; do
+    '[PLAN] resource_creation=false'; do
     if ! grep -F "$expected" "$first_output" >/dev/null; then
         die "dry-run output is missing: $expected"
     fi
@@ -59,16 +64,17 @@ if PATH="$fake_bin:$PATH" ETHQUAKE_CLOUD_MARKER="$cloud_marker" \
     die "dry-run accepted an invalid session ID"
 fi
 if PATH="$fake_bin:$PATH" ETHQUAKE_CLOUD_MARKER="$cloud_marker" \
+    ETHQUAKE_SESSION_ID=local-check \
     "$script_dir/phase3.sh" run \
     >"$test_root/run.out" 2>&1; then
-    die "real AWS run was not blocked"
+    die "real GCP run was not blocked"
 fi
-if ! grep -F 'AWS account preflight' "$test_root/run.out" >/dev/null; then
-    die "real-run refusal did not identify the missing AWS preflight"
+if ! grep -F 'GCP project, billing, budget, recipient, and exact GKE version are required' "$test_root/run.out" >/dev/null; then
+    die "real-run refusal did not identify the missing GCP inputs"
 fi
 if [ -e "$cloud_marker" ]; then
     die "blocked run called a cloud CLI"
 fi
 
-printf '[PASS] Phase 3 AWS dry-run is deterministic and cloud-free\n'
-printf '[PASS] Phase 3 AWS real-run is fail-safe\n'
+printf '[PASS] Phase 3 GCP dry-run is deterministic and cloud-free\n'
+printf '[PASS] Phase 3 GCP real-run is fail-safe\n'

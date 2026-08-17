@@ -206,7 +206,7 @@ func runExperimentCapture(ctx context.Context, arguments []string, stdout, stder
 	flags.StringVar(&scenarioPath, "scenario", "", "scenario YAML path")
 	flags.StringVar(&runID, "run-id", "", "committed run ID")
 	flags.StringVar(&kubeconfigPath, "kubeconfig", "", "repository- or session-local kubeconfig path")
-	flags.StringVar(&contextName, "context", "ethquake-aws-phase3", "Kubernetes context")
+	flags.StringVar(&contextName, "context", "gke-ethquake-phase3", "Kubernetes context")
 	flags.StringVar(&namespace, "namespace", "", "exact run namespace")
 	flags.StringVar(&validatorRangesPath, "validator-ranges", "", "downloaded validator-ranges.yaml path")
 	flags.StringVar(&dependencyLockPath, "dependency-lock", "experiment/dependencies.lock.json", "dependency lock path")

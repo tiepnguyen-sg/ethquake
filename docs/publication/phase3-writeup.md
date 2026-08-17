@@ -66,7 +66,7 @@ connectivity is restored.
 | Head divergence tolerance | One current slot |
 
 The evidence report must add the realized split, exact client image digests,
-runtime chain constants, resource policy, node placement, AWS region,
+runtime chain constants, resource policy, node placement, GCP region and zone,
 Kubernetes substrate and version, instance types, and execution timestamps.
 
 ## Measurement model
@@ -113,8 +113,8 @@ Outcome: [PENDING EVIDENCE]
 | Field | Evidence value |
 |---|---|
 | Source commit | [PENDING EVIDENCE] |
-| AWS account plan | [PENDING EVIDENCE] |
-| AWS region | [PENDING EVIDENCE] |
+| GCP billing/preflight status | [PENDING EVIDENCE] |
+| GCP region/zone | [PENDING EVIDENCE] |
 | Kubernetes substrate/version | [PENDING EVIDENCE] |
 | Participant instance type | [PENDING EVIDENCE] |
 | Runtime images | [PENDING EVIDENCE] |
@@ -183,7 +183,7 @@ Before publication, release or checksum-reference:
   `checksums.json`, `realized-split.json`, and `raw-timeseries.jsonl`;
 - `report.json`, `report.md`, and `finality-progress.svg`;
 - the account-preflight result with account identifiers redacted;
-- exact reproduction and teardown commands after the AWS runner is accepted.
+- exact reproduction and teardown commands after the GCP runner is accepted.
 
 The canonical evidence remains off-cluster. Do not publish credentials,
 account IDs, endpoint tokens, kubeconfigs, payment information, or signed URLs.

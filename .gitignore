@@ -136,3 +136,15 @@ terraform.tfvars
 
 *.bak
 *.orig
+
+# ============================================================
+# Local project-control context
+# ============================================================
+
+AGENTS.md
+PROJECT_BRIEF.md
+PROJECT_STATE.md
+ENGINEERING_STANDARDS.md
+PRIVATE_NOTES.md
+RESEARCH_NOTES.md
+SCRATCH.md

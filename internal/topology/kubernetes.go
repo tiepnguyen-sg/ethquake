@@ -45,7 +45,7 @@ func NewKubernetes(kubectlPath, kubeconfigPath, contextName string) (*Kubernetes
 	if err != nil {
 		return nil, fmt.Errorf("resolve kubeconfig path: %w", err)
 	}
-	if contextName != "ethquake-aws-phase3" {
+	if contextName != "gke-ethquake-phase3" {
 		return nil, fmt.Errorf("Kubernetes context %q is not the Phase 3 evidence context", contextName)
 	}
 	return &Kubernetes{runner: &kubectlExec{

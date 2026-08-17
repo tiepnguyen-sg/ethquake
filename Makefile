@@ -7,8 +7,8 @@ GO ?= go
 	access-smoke kurtosis devnet-up devnet-down devnet-status devnet-verify \
 	go-preflight fmt fmt-check test test-race test-e2e vet build verify \
 	scenario-validate phase3-prepare phase3-preflight phase3-dry-run \
-	phase3-chaos-e2e phase3-runner-test phase3-aws-preflight-test \
-	phase3-aws-preflight phase3-run
+	phase3-chaos-e2e phase3-runner-test phase3-gcp-preflight-test \
+	phase3-gcp-preflight phase3-run
 preflight:
 	@PATH="$(ETHQUAKE_LOCAL_BIN):$(PATH)" ./scripts/devnet/preflight.sh
 
@@ -75,7 +75,7 @@ build: go-preflight
 	@mkdir -p bin
 	@CGO_ENABLED=0 GOTOOLCHAIN=local $(GO) build -trimpath -o bin/ethquake ./cmd/ethquake
 
-verify: fmt-check test vet build phase3-runner-test phase3-aws-preflight-test
+verify: fmt-check test vet build phase3-runner-test phase3-gcp-preflight-test
 
 scenario-validate: build
 	@./bin/ethquake scenario validate --file scenarios/cl-p2p-partition.yaml
@@ -97,11 +97,11 @@ phase3-chaos-e2e: go-preflight
 phase3-runner-test: build
 	@./scripts/experiment/phase3-runner-test.sh
 
-phase3-aws-preflight-test:
-	@./scripts/experiment/aws-account-preflight-test.sh
+phase3-gcp-preflight-test:
+	@./scripts/experiment/gcp-account-preflight-test.sh
 
-phase3-aws-preflight:
-	@./scripts/experiment/aws-account-preflight.sh
+phase3-gcp-preflight:
+	@./scripts/experiment/gcp-account-preflight.sh
 
 phase3-run:
 	@./scripts/experiment/phase3.sh run

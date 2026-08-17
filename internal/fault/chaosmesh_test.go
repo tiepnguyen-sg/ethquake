@@ -14,7 +14,7 @@ func TestNewChaosMeshContextAllowlist(t *testing.T) {
 	for _, contextName := range []string{
 		"kind-ethquake",
 		"kind-ethquake-chaos-smoke",
-		"ethquake-aws-phase3",
+		"gke-ethquake-phase3",
 	} {
 		if _, err := NewChaosMesh("kubectl", "kubeconfig", contextName); err != nil {
 			t.Fatalf("NewChaosMesh(%q) error = %v", contextName, err)

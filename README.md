@@ -59,25 +59,30 @@ three-epoch CL P2P partition. Its thresholds and run order are preregistered in
 the scenario and ADR-0004. Measurement windows use genesis-derived current
 slots, so empty block slots remain represented during the partition.
 
-The AWS dry-run validates the committed inputs and prints the unresolved account
-gates without requiring AWS credentials or calling a cloud API:
+The GCP dry-run validates the committed inputs and prints the locked account
+gates without requiring GCP credentials or calling a cloud API:
 
 ```sh
 make phase3-dry-run ETHQUAKE_SESSION_ID=local-check
 ```
 
-The AWS account preflight is also tested locally against a fake AWS CLI and
-committed response fixtures. Once an account is active and an explicit CLI
-profile exists, run the real read-only checks with a candidate region:
+The GCP account preflight is tested locally against a fake gcloud CLI and
+committed catalog fixtures. Run the real read-only checks with explicit account
+inputs:
 
 ```sh
-AWS_PROFILE=ethquake AWS_REGION=ap-southeast-1 make phase3-aws-preflight
+GCP_PROJECT=<project-id> \
+GCP_BILLING_ACCOUNT=<billing-account-id> \
+GCP_BUDGET_ID=<budget-id> \
+GCP_BUDGET_RECIPIENT=<email> \
+GKE_VERSION=<exact-version> \
+make phase3-gcp-preflight
 ```
 
-This command reads identity, Free-plan state, remaining credits, regional Spot
-quota, the EKS version catalog, and the locked USD 20 budget alert. It neither
-changes account configuration nor creates resources. EKS read access alone is
-not treated as proof that Free-plan cluster creation is allowed.
+This command verifies paid billing, the exact project-scoped VND 5,500,000 gross
+budget and recipient, the cheapest selectable region, regional and global
+quota, GKE versions, machine availability, and empty runtime and VPC inventory.
+It neither changes account configuration nor creates resources.
 
 For a fuller local readiness check, prepare the locked dependencies and verify
 the local container, Kubernetes, Helm, port, and scenario prerequisites:
@@ -89,7 +94,7 @@ make phase3-preflight
 
 Preparation downloads the official locked Helm archive into the ignored
 repository cache and verifies its checksum; it does not install a host tool,
-change user configuration, authenticate to AWS, or create a cloud resource.
+change user configuration, authenticate to GCP, or create a cloud resource.
 
 `make test` also drives the complete committed six-run order against a
 deterministic in-process Beacon fixture. It exercises orchestration, fault
@@ -110,18 +115,14 @@ repository-local kubeconfig and does not modify the retained development
 cluster or the global Kubernetes context. This smoke test is not Phase 3
 experimental evidence.
 
-The Phase 3 cloud runner is being migrated to AWS under
-[ADR-0006](docs/adr/ADR-0006-phase3-cloud-provider.md). `make phase3-run` is a
-fail-safe placeholder that exits before any cloud API call. No cloud experiment
-is authorized until the AWS account-specific preflight passes and provisioning,
-cost controls, and teardown are implemented and verified.
-
-The replacement preflight must verify the account plan, service eligibility,
-regional capacity for the required 16 vCPUs, Kubernetes version, budget alerts,
-ownership tags, session-local kubeconfig, and teardown trap before creating a
-cluster. The evidence-session workflow will continue to install the pinned
-Chaos Mesh chart, execute the committed run order, preserve evidence under
-`runs/`, and analyze Gate A then B then C.
+The Phase 3 cloud runner targets a single-zone GKE Standard cluster under
+[ADR-0007](docs/adr/ADR-0007-phase3-gcp-substrate.md). It remains fail-closed
+until the account preflight passes, the owner provides explicit session
+authorization, and the expected spend is accepted. The runner creates only an
+owned custom VPC with one subnet in the locked region and an exactly labelled
+ephemeral cluster, installs the pinned Chaos Mesh chart, executes the committed
+run order, preserves evidence under `runs/`, analyzes Gate A then B then C, and
+unconditionally attempts cluster, subnet, and VPC teardown.
 
 The preregistered
 [Phase 3 publication outline](docs/publication/phase3-writeup.md) fixes the
