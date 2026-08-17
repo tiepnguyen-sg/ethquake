@@ -20,6 +20,13 @@ epoch fields must not conflict; client-specific future fork fields are retained.
 Successful polls produce typed observations; failed polls produce explicit gaps
 and self-health metrics.
 
+Read genesis time and genesis slot from the standard Beacon genesis and genesis
+header endpoints, then derive `current_slot` from wall-clock time and runtime
+`SECONDS_PER_SLOT`. `GENESIS_SLOT` is not reliably returned by
+`/eth/v1/config/spec`; reading the header keeps the value runtime-derived.
+Finality lag uses that current slot; the canonical head block slot is not a
+substitute because empty slots do not create blocks.
+
 Prometheus is the live metrics surface. Versioned JSON Lines is the run-scoped
 time-series surface. Metrics listen on loopback by default. The assertion engine
 consumes observations separately and is never imported by the Observer.

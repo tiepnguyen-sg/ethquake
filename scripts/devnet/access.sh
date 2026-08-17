@@ -26,9 +26,9 @@ require_command() {
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repository_root=$(CDPATH= cd -- "$script_dir/../.." && pwd)
 versions_file="$repository_root/devnet/versions.env"
-repository_kubeconfig="$repository_root/.kurtosis/kubeconfig"
-network_params="$repository_root/devnet/network_params.yaml"
-access_root="$repository_root/.kurtosis/access"
+repository_kubeconfig=${ETHQUAKE_KUBECONFIG:-"$repository_root/.kurtosis/kubeconfig"}
+network_params=${ETHQUAKE_NETWORK_PARAMS:-"$repository_root/devnet/network_params.yaml"}
+access_root=${ETHQUAKE_ACCESS_ROOT:-"$repository_root/.kurtosis/access"}
 cache_dir="$access_root/cache"
 runtime_dir="$access_root/runtime"
 runtime_home="$runtime_dir/home"
@@ -36,9 +36,42 @@ forwards_dir="$runtime_dir/forwards"
 gateway_container=ethquake-kurtosis-access
 gateway_network=ethquake-kurtosis-access
 gateway_port=9710
-expected_context=kind-ethquake
+expected_context=${ETHQUAKE_KUBERNETES_CONTEXT:-kind-ethquake}
+storage_class=${ETHQUAKE_STORAGE_CLASS:-standard}
+package_mount=${ETHQUAKE_PACKAGE_PATH:-}
+start_engine_if_missing=${ETHQUAKE_START_ENGINE_IF_MISSING:-false}
 managed_label=dev.ethquake.managed
 component_label=dev.ethquake.component
+context_label=dev.ethquake.context
+
+case "$access_root" in
+    "$repository_root"/.kurtosis/access|"$repository_root"/.cache/experiment/access)
+        ;;
+    *)
+        die "Access root is outside the Ethquake-owned allowlist: $access_root"
+        ;;
+esac
+case "$start_engine_if_missing" in
+    true|false)
+        ;;
+    *)
+        die "ETHQUAKE_START_ENGINE_IF_MISSING must be true or false"
+        ;;
+esac
+case "$expected_context" in
+    kind-ethquake|gke-ethquake-phase3)
+        ;;
+    *)
+        die "Kubernetes context is outside the Ethquake access allowlist: $expected_context"
+        ;;
+esac
+case "$storage_class" in
+    standard|standard-rwo)
+        ;;
+    *)
+        die "Storage class is outside the Ethquake access allowlist: $storage_class"
+        ;;
+esac
 
 if [ ! -r "$versions_file" ]; then
     die "Cannot read version locks: $versions_file"
@@ -87,7 +120,11 @@ assert_managed_container() {
     component=$(docker inspect \
         --format "{{ index .Config.Labels \"$component_label\" }}" \
         "$gateway_container" 2>/dev/null || true)
-    if [ "$container_label" != "true" ] || [ "$component" != "gateway" ]; then
+    container_context=$(docker inspect \
+        --format "{{ index .Config.Labels \"$context_label\" }}" \
+        "$gateway_container" 2>/dev/null || true)
+    if [ "$container_label" != "true" ] || [ "$component" != "gateway" ] || \
+        [ "$container_context" != "$expected_context" ]; then
         die "Refusing to manage foreign container: $gateway_container"
     fi
 }
@@ -130,7 +167,7 @@ assert_loopback_listener() {
 
 remove_runtime() {
     case "$runtime_dir" in
-        "$repository_root"/.kurtosis/access/runtime)
+        "$repository_root"/.kurtosis/access/runtime|"$repository_root"/.cache/experiment/access/runtime)
             if [ -d "$runtime_dir" ]; then
                 rm -rf -- "$runtime_dir"
             fi
@@ -215,30 +252,32 @@ prepare_runtime_home() {
         config view --minify -o jsonpath='{.clusters[0].name}')
     api_server=$(kubectl --kubeconfig="$repository_kubeconfig" \
         config view --minify -o jsonpath='{.clusters[0].cluster.server}')
-    case "$api_server" in
-        https://127.0.0.1:*)
-            api_port=${api_server##*:}
-            ;;
-        *)
-            die "Repository-local kubeconfig has an unexpected API server: $api_server"
-            ;;
-    esac
-    case "$api_port" in
-        ''|*[!0-9]*)
-            die "Could not parse the kind API server port"
-            ;;
-    esac
-
     mkdir -p -- \
         "$runtime_home/.config/kurtosis" \
         "$runtime_home/.local/share/kurtosis" \
         "$runtime_home/.kube" \
         "$forwards_dir"
     cp -- "$repository_kubeconfig" "$runtime_home/.kube/config"
-    kubectl --kubeconfig="$runtime_home/.kube/config" \
-        config set-cluster "$cluster_name" \
-        --server="https://host.docker.internal:$api_port" \
-        --tls-server-name=127.0.0.1 >/dev/null
+    case "$api_server" in
+        https://127.0.0.1:*)
+            api_port=${api_server##*:}
+            case "$api_port" in
+                ''|*[!0-9]*)
+                    die "Could not parse the kind API server port"
+                    ;;
+            esac
+            kubectl --kubeconfig="$runtime_home/.kube/config" \
+                config set-cluster "$cluster_name" \
+                --server="https://host.docker.internal:$api_port" \
+                --tls-server-name=127.0.0.1 >/dev/null
+            ;;
+        https://*)
+            ;;
+        *)
+            die "Repository-local kubeconfig has an unexpected API server: $api_server"
+            ;;
+    esac
+
     chmod 0400 "$runtime_home/.kube/config"
 
     {
@@ -250,8 +289,8 @@ prepare_runtime_home() {
         printf '%s\n' '  ethquake:'
         printf '%s\n' '    type: kubernetes'
         printf '%s\n' '    config:'
-        printf '%s\n' '      kubernetes-cluster-name: kind-ethquake'
-        printf '%s\n' '      storage-class: standard'
+        printf '      kubernetes-cluster-name: %s\n' "$cluster_name"
+        printf '      storage-class: %s\n' "$storage_class"
     } > "$runtime_home/.config/kurtosis/kurtosis-config.yml"
     printf '%s' 'ethquake' > \
         "$runtime_home/.local/share/kurtosis/cluster-setting"
@@ -264,11 +303,38 @@ prepare_runtime_home() {
     esac
     printf '%s\n' "$machine_id" > "$runtime_dir/machine-id"
     chmod 0400 "$runtime_dir/machine-id"
+
+    if [ -n "$package_mount" ]; then
+        package_mount=$(CDPATH= cd -- "$package_mount" && pwd)
+        case "$package_mount" in
+            "$repository_root"/.cache/experiment/dependencies/ethereum-package)
+                ;;
+            *)
+                die "Package mount is outside the prepared dependency path"
+                ;;
+        esac
+    else
+        package_mount="$runtime_dir/empty-package"
+        mkdir -p -- "$package_mount"
+    fi
 }
 
 gateway_is_running() {
     [ "$(docker inspect --format '{{.State.Running}}' \
         "$gateway_container" 2>/dev/null || true)" = "true" ]
+}
+
+engine_is_running() {
+    engine_status=$(docker exec "$gateway_container" \
+        /usr/local/bin/kurtosis engine status 2>/dev/null || true)
+    case "$engine_status" in
+        'A Kurtosis engine is running'*)
+            return 0
+            ;;
+        *)
+            return 1
+            ;;
+    esac
 }
 
 gateway_start() {
@@ -285,10 +351,18 @@ gateway_start() {
             selected_cluster=$(docker exec "$gateway_container" \
                 /usr/local/bin/kurtosis cluster get 2>/dev/null |
                 awk 'NF { value = $0 } END { print value }')
-            if [ "$selected_cluster" != "ethquake" ] || \
-                ! docker exec "$gateway_container" \
-                    /usr/local/bin/kurtosis engine status >/dev/null 2>&1; then
-                die "Existing gateway does not manage the Ethquake Kubernetes engine"
+            if [ "$selected_cluster" != "ethquake" ]; then
+                die "Existing gateway does not select the Ethquake Kubernetes backend"
+            fi
+            if ! engine_is_running; then
+                if [ "$start_engine_if_missing" != true ] || \
+                    ! docker exec "$gateway_container" /usr/bin/timeout 300 \
+                        /usr/local/bin/kurtosis engine start; then
+                    die "Existing gateway does not manage the Ethquake Kubernetes engine"
+                fi
+                if ! engine_is_running; then
+                    die "Kurtosis engine bootstrap returned without a running engine"
+                fi
             fi
             assert_loopback_listener "$gateway_port" "Kurtosis gateway"
             assert_global_context "$initial_global_context"
@@ -320,6 +394,7 @@ gateway_start() {
         --hostname "$gateway_container" \
         --label "$managed_label=true" \
         --label "$component_label=gateway" \
+        --label "$context_label=$expected_context" \
         --network "$gateway_network" \
         --add-host host.docker.internal:host-gateway \
         --publish "127.0.0.1:$gateway_port:$gateway_port/tcp" \
@@ -340,6 +415,7 @@ gateway_start() {
         --mount "type=bind,src=$runtime_dir/bin/kurtosis,dst=/usr/local/bin/kurtosis,readonly" \
         --mount "type=bind,src=$runtime_dir/machine-id,dst=/etc/machine-id,readonly" \
         --mount "type=bind,src=$network_params,dst=/ethquake/network_params.yaml,readonly" \
+        --mount "type=bind,src=$package_mount,dst=/ethquake/ethereum-package,readonly" \
         "$KURTOSIS_GATEWAY_BASE_IMAGE" \
         /usr/local/bin/kurtosis gateway >/dev/null; then
         gateway_stop || true
@@ -347,9 +423,33 @@ gateway_start() {
     fi
 
     attempt=0
+    while [ "$attempt" -lt 15 ]; do
+        if gateway_is_running && \
+            lsof -nP -iTCP:"$gateway_port" -sTCP:LISTEN >/dev/null 2>&1; then
+            break
+        fi
+        attempt=$((attempt + 1))
+        sleep 1
+    done
+    if [ "$attempt" -ge 15 ]; then
+        docker logs "$gateway_container" >&2 || true
+        gateway_stop || true
+        die "Kurtosis gateway control listener did not become ready"
+    fi
+
+    if ! engine_is_running && \
+        [ "$start_engine_if_missing" = true ]; then
+        info "Starting the Kurtosis Kubernetes engine through the constrained gateway"
+        if ! docker exec "$gateway_container" /usr/bin/timeout 300 \
+            /usr/local/bin/kurtosis engine start; then
+            gateway_stop || true
+            die "Kurtosis Kubernetes engine bootstrap failed"
+        fi
+    fi
+
+    attempt=0
     while [ "$attempt" -lt 30 ]; do
-        if gateway_is_running && docker exec "$gateway_container" \
-            /usr/local/bin/kurtosis engine status >/dev/null 2>&1; then
+        if gateway_is_running && engine_is_running; then
             break
         fi
         attempt=$((attempt + 1))

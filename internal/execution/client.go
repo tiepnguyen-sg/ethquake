@@ -28,6 +28,58 @@ type Client struct {
 	handshakeTimeout time.Duration
 }
 
+func (c *Client) ChainID(ctx context.Context) (uint64, error) {
+	handshakeContext, cancelHandshake := context.WithTimeout(ctx, c.handshakeTimeout)
+	defer cancelHandshake()
+	connection, response, err := websocket.Dial(handshakeContext, c.endpoint.String(), nil)
+	if err != nil {
+		if response != nil {
+			return 0, fmt.Errorf("connect to execution WebSocket for chain ID: HTTP %s: %w", response.Status, err)
+		}
+		return 0, fmt.Errorf("connect to execution WebSocket for chain ID: %w", err)
+	}
+	defer connection.CloseNow()
+	connection.SetReadLimit(maxMessageBytes)
+
+	request := struct {
+		JSONRPC string `json:"jsonrpc"`
+		ID      uint64 `json:"id"`
+		Method  string `json:"method"`
+		Params  []any  `json:"params"`
+	}{JSONRPC: "2.0", ID: 1, Method: "eth_chainId", Params: []any{}}
+	requestBytes, err := json.Marshal(request)
+	if err != nil {
+		return 0, fmt.Errorf("encode execution chain ID request: %w", err)
+	}
+	if err := connection.Write(handshakeContext, websocket.MessageText, requestBytes); err != nil {
+		return 0, fmt.Errorf("request execution chain ID: %w", err)
+	}
+	_, message, err := connection.Read(handshakeContext)
+	if err != nil {
+		return 0, fmt.Errorf("read execution chain ID: %w", err)
+	}
+	var rpcResponse struct {
+		JSONRPC string          `json:"jsonrpc"`
+		ID      uint64          `json:"id"`
+		Result  string          `json:"result"`
+		Error   json.RawMessage `json:"error"`
+	}
+	if err := json.Unmarshal(message, &rpcResponse); err != nil {
+		return 0, fmt.Errorf("decode execution chain ID: %w", err)
+	}
+	if len(rpcResponse.Error) != 0 && string(rpcResponse.Error) != "null" {
+		return 0, errors.New("execution client rejected eth_chainId")
+	}
+	if rpcResponse.JSONRPC != "2.0" || rpcResponse.ID != 1 {
+		return 0, errors.New("execution client returned an invalid eth_chainId response")
+	}
+	chainID, err := parseQuantity("chain ID", rpcResponse.Result)
+	if err != nil {
+		return 0, err
+	}
+	return chainID, nil
+}
+
 func NewClient(rawEndpoint string, handshakeTimeout time.Duration) (*Client, error) {
 	if handshakeTimeout <= 0 {
 		return nil, errors.New("WebSocket handshake timeout must be positive")

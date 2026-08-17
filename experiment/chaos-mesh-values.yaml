@@ -1,0 +1,45 @@
+clusterScoped: true
+
+enableProfiling: false
+
+controllerManager:
+  allowHostNetworkTesting: false
+  replicaCount: 1
+  enableFilterNamespace: true
+  enabledControllers:
+    - networkchaos
+    - podnetworkchaos
+  enabledWebhooks:
+    - networkchaos
+  image:
+    repository: chaos-mesh/chaos-mesh
+    tag: v2.8.3@sha256:bdb31f3121a2979361c2a12cfb2a7845b7e66dc7589dcde5f9457473b50c707f
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+chaosDaemon:
+  image:
+    repository: chaos-mesh/chaos-daemon
+    tag: v2.8.3@sha256:69b1d3c09cfa58df94f5be7e498591f88f5007f6d22ebeeeda1731cb37acd377
+  runtime: containerd
+  socketPath: /run/containerd/containerd.sock
+  privileged: true
+  hostNetwork: false
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+dashboard:
+  create: false
+
+dnsServer:
+  create: false

@@ -1,0 +1,104 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethquake.dev/schemas/run-v1alpha1.json",
+  "title": "Ethquake Run v1alpha1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "run_id", "condition", "repetition", "window", "primary_measurement_complete", "recovery_measurement_complete", "measurement_gaps", "targets", "realized_split", "dependencies", "confounders"],
+  "properties": {
+    "schema_version": { "const": "ethquake.run/v1alpha1" },
+    "run_id": { "type": "string", "pattern": "^(control|fault)-[1-3]$" },
+    "condition": { "enum": ["control", "fault"] },
+    "repetition": { "type": "integer", "minimum": 1, "maximum": 3 },
+    "window": { "$ref": "#/$defs/window" },
+    "primary_measurement_complete": { "type": "boolean" },
+    "recovery_measurement_complete": { "type": "boolean" },
+    "measurement_gaps": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "targets": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "$ref": "#/$defs/target" } },
+    "realized_split": { "$ref": "#/$defs/realizedSplit" },
+    "dependencies": { "$ref": "#/$defs/dependencies" },
+    "confounders": { "$ref": "#/$defs/confounders" }
+  },
+  "$defs": {
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["started_at", "ended_at", "start_slot", "end_slot"],
+      "properties": {
+        "started_at": { "type": "string", "format": "date-time" },
+        "ended_at": { "type": "string", "format": "date-time" },
+        "start_slot": { "type": "integer", "minimum": 0 },
+        "end_slot": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["target", "cl_client", "group", "start_finalized_epoch", "end_finalized_epoch", "finalized_epoch_progress", "recovery_slots", "head_divergence_exceeded"],
+      "properties": {
+        "target": { "type": "string", "minLength": 1 },
+        "cl_client": { "type": "string", "minLength": 1 },
+        "group": { "type": "string", "minLength": 1 },
+        "start_finalized_epoch": { "type": "integer", "minimum": 0 },
+        "end_finalized_epoch": { "type": "integer", "minimum": 0 },
+        "finalized_epoch_progress": { "type": "integer", "minimum": 0 },
+        "recovery_slots": { "type": ["integer", "null"], "minimum": 0 },
+        "head_divergence_exceeded": { "type": "boolean" }
+      }
+    },
+    "participantWeight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["participant_id", "validator_count", "effective_balance"],
+      "properties": {
+        "participant_id": { "type": "string", "minLength": 1 },
+        "validator_count": { "type": "integer", "minimum": 1 },
+        "effective_balance": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "groupWeight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "requested_share", "realized_share", "effective_balance"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "requested_share": { "type": "number", "minimum": 0, "maximum": 1 },
+        "realized_share": { "type": "number", "minimum": 0, "maximum": 1 },
+        "effective_balance": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "realizedSplit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["split_by", "total_active_balance", "participants", "groups", "within_tolerance", "tolerance_fraction"],
+      "properties": {
+        "split_by": { "const": "validator_weight" },
+        "total_active_balance": { "type": "integer", "minimum": 1 },
+        "participants": { "type": "array", "minItems": 4, "maxItems": 4, "items": { "$ref": "#/$defs/participantWeight" } },
+        "groups": { "type": "array", "minItems": 2, "maxItems": 2, "items": { "$ref": "#/$defs/groupWeight" } },
+        "within_tolerance": { "type": "boolean" },
+        "tolerance_fraction": { "type": "number", "minimum": 0, "maximum": 1 }
+      }
+    },
+    "dependencies": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ethereum_package_revision", "imported_packages", "runtime_images"],
+      "properties": {
+        "ethereum_package_revision": { "type": "string", "pattern": "^[0-9a-f]{40}$" },
+        "imported_packages": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string", "pattern": "^[0-9a-f]{40}$" } },
+        "runtime_images": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "string", "pattern": "^[^@ ]+@sha256:[0-9a-f]{64}$" } }
+      }
+    },
+    "confounders": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["resources_equal", "node_placement_controlled", "dependency_closure_pinned"],
+      "properties": {
+        "resources_equal": { "type": "boolean" },
+        "node_placement_controlled": { "type": "boolean" },
+        "dependency_closure_pinned": { "type": "boolean" }
+      }
+    }
+  }
+}

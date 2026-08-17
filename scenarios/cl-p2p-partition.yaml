@@ -1,0 +1,95 @@
+apiVersion: ethquake.dev/v1alpha1
+kind: Scenario
+metadata:
+  name: cl-p2p-partition
+spec:
+  target:
+    chain_id: 3151908
+    namespace_prefix: kt-ethquake-phase3-
+  topology:
+    participants:
+      - id: lighthouse-geth-a
+        el_client: geth
+        cl_client: lighthouse
+        beacon_target: lighthouse-a
+        beacon_service_id: cl-1-lighthouse-geth
+        execution_service_id: el-1-geth-lighthouse
+        validator_service_id: vc-1-geth-lighthouse
+        validator_range_name: 1-geth-lighthouse
+        validator_count: 32
+      - id: teku-reth-a
+        el_client: reth
+        cl_client: teku
+        beacon_target: teku-a
+        beacon_service_id: cl-2-teku-reth
+        execution_service_id: el-2-reth-teku
+        validator_service_id: vc-2-reth-teku
+        validator_range_name: 2-reth-teku
+        validator_count: 32
+      - id: lighthouse-geth-b
+        el_client: geth
+        cl_client: lighthouse
+        beacon_target: lighthouse-b
+        beacon_service_id: cl-3-lighthouse-geth
+        execution_service_id: el-3-geth-lighthouse
+        validator_service_id: vc-3-geth-lighthouse
+        validator_range_name: 3-geth-lighthouse
+        validator_count: 32
+      - id: teku-reth-b
+        el_client: reth
+        cl_client: teku
+        beacon_target: teku-b
+        beacon_service_id: cl-4-teku-reth
+        execution_service_id: el-4-reth-teku
+        validator_service_id: vc-4-reth-teku
+        validator_range_name: 4-reth-teku
+        validator_count: 32
+  fault:
+    type: network_partition
+    split_by: validator_weight
+    layers:
+      - cl_p2p
+    duration_epochs: 3
+    groups:
+      - name: a
+        share: 0.5
+        participants:
+          - lighthouse-geth-a
+          - teku-reth-a
+      - name: b
+        share: 0.5
+        participants:
+          - lighthouse-geth-b
+          - teku-reth-b
+  thresholds:
+    head_divergence_tolerance_slots: 1
+    realized_split_tolerance_fraction: 0
+    client_recovery_difference_slots: 1
+  methodology:
+    control_repetitions: 3
+    fault_repetitions: 3
+    pairing: by_repetition
+    order_seed: phase3-d
+    run_order:
+      - fault-3
+      - control-2
+      - control-1
+      - fault-2
+      - control-3
+      - fault-1
+    post_fault_observation_epochs: 4
+  prediction:
+    primary_metric: finalized_epoch_progress
+    gate_a_rule: max_fault_target_strictly_less_than_min_paired_control_target_all_repetitions
+    gate_b_rule: zero_fault_progress_and_recovery_all_repetitions
+    explanation: >-
+      A three-epoch 50/50 split by active validator effective balance leaves
+      neither side with the two-thirds support needed to justify new
+      checkpoints. Finality should not advance during the partition and should
+      resume after connectivity is restored.
+  limitations:
+    does_not_prove: >-
+      This experiment does not establish a client bug, model arbitrary Internet
+      partitions, isolate EL P2P or EL-CL failures, or generalize beyond the
+      pinned client versions, topology, resources, and fork schedule recorded in
+      the evidence bundle.

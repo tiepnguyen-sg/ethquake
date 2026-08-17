@@ -16,8 +16,9 @@ import (
 
 type BeaconClient interface {
 	Spec(context.Context) (beacon.Spec, error)
+	Genesis(context.Context) (beacon.Genesis, error)
 	Head(context.Context) (beacon.Head, error)
-	Finality(context.Context) (beacon.Finality, error)
+	Finality(context.Context, string) (beacon.Finality, error)
 }
 
 type Target struct {
@@ -26,14 +27,16 @@ type Target struct {
 }
 
 type SpecObservation struct {
-	Timestamp time.Time   `json:"timestamp"`
-	Target    string      `json:"target"`
-	Spec      beacon.Spec `json:"spec"`
+	Timestamp time.Time      `json:"timestamp"`
+	Target    string         `json:"target"`
+	Spec      beacon.Spec    `json:"spec"`
+	Genesis   beacon.Genesis `json:"genesis"`
 }
 
 type BeaconObservation struct {
 	Timestamp        time.Time       `json:"timestamp"`
 	Target           string          `json:"target"`
+	CurrentSlot      uint64          `json:"current_slot"`
 	Head             beacon.Head     `json:"head"`
 	Finality         beacon.Finality `json:"finality"`
 	FinalityLagSlots uint64          `json:"finality_lag_slots"`
@@ -71,6 +74,7 @@ type Observer struct {
 
 	initializeOnce sync.Once
 	spec           beacon.Spec
+	genesis        beacon.Genesis
 	initializeErr  error
 }
 
@@ -153,6 +157,7 @@ func (o *Observer) Run(ctx context.Context) error {
 func (o *Observer) initialize(ctx context.Context) error {
 	o.initializeOnce.Do(func() {
 		specs := make([]beacon.Spec, len(o.targets))
+		genesis := make([]beacon.Genesis, len(o.targets))
 		group, groupContext := errgroup.WithContext(ctx)
 		for index, target := range o.targets {
 			index, target := index, target
@@ -162,6 +167,11 @@ func (o *Observer) initialize(ctx context.Context) error {
 					return fmt.Errorf("fetch runtime spec from target %q: %w", target.Name, err)
 				}
 				specs[index] = spec
+				genesisValue, err := target.Beacon.Genesis(groupContext)
+				if err != nil {
+					return fmt.Errorf("fetch genesis from target %q: %w", target.Name, err)
+				}
+				genesis[index] = genesisValue
 				return nil
 			})
 		}
@@ -182,14 +192,26 @@ func (o *Observer) initialize(ctx context.Context) error {
 				)
 				return
 			}
+			if !genesis[index].Compatible(genesis[0]) {
+				o.initializeErr = fmt.Errorf(
+					"network genesis mismatch: target %q has %+v; target %q has %+v",
+					o.targets[index].Name,
+					genesis[index],
+					o.targets[0].Name,
+					genesis[0],
+				)
+				return
+			}
 		}
 
 		o.spec = reference
+		o.genesis = genesis[0]
 		for index, target := range o.targets {
 			if err := o.recorder.RecordSpec(SpecObservation{
 				Timestamp: o.now().UTC(),
 				Target:    target.Name,
 				Spec:      specs[index],
+				Genesis:   genesis[index],
 			}); err != nil {
 				o.initializeErr = fmt.Errorf("record runtime spec for target %q: %w", target.Name, err)
 				return
@@ -221,13 +243,14 @@ func (o *Observer) runTarget(ctx context.Context, target Target) error {
 func (o *Observer) pollAndRecord(ctx context.Context, target Target) error {
 	started := o.now()
 	head, finality, err := pollBeacon(ctx, target.Beacon)
-	duration := o.now().Sub(started)
+	observedAt := o.now().UTC()
+	duration := observedAt.Sub(started)
 	if err != nil {
 		if errors.Is(err, context.Canceled) {
 			return nil
 		}
 		failure := PollFailure{
-			Timestamp:    o.now().UTC(),
+			Timestamp:    observedAt,
 			Target:       target.Name,
 			Protocol:     "beacon",
 			Operation:    "beacon_poll",
@@ -240,10 +263,26 @@ func (o *Observer) pollAndRecord(ctx context.Context, target Target) error {
 		return nil
 	}
 
-	lag, err := FinalityLag(head.Slot, finality.Epoch, o.spec.SlotsPerEpoch)
+	currentSlot, err := CurrentSlotAt(observedAt, o.genesis.Time, o.spec.SecondsPerSlot, o.genesis.Slot)
 	if err != nil {
 		failure := PollFailure{
-			Timestamp:    o.now().UTC(),
+			Timestamp:    observedAt,
+			Target:       target.Name,
+			Protocol:     "beacon",
+			Operation:    "calculate_current_slot",
+			Error:        err.Error(),
+			PollDuration: duration,
+		}
+		if recordErr := o.recorder.RecordPollFailure(failure); recordErr != nil {
+			return fmt.Errorf("record calculation failure for target %q: %w", target.Name, recordErr)
+		}
+		return nil
+	}
+
+	lag, err := FinalityLag(currentSlot, finality.Epoch, o.spec.SlotsPerEpoch)
+	if err != nil {
+		failure := PollFailure{
+			Timestamp:    observedAt,
 			Target:       target.Name,
 			Protocol:     "beacon",
 			Operation:    "calculate_finality_lag",
@@ -257,8 +296,9 @@ func (o *Observer) pollAndRecord(ctx context.Context, target Target) error {
 	}
 
 	observation := BeaconObservation{
-		Timestamp:        o.now().UTC(),
+		Timestamp:        observedAt,
 		Target:           target.Name,
+		CurrentSlot:      currentSlot,
 		Head:             head,
 		Finality:         finality,
 		FinalityLagSlots: lag,
@@ -278,33 +318,34 @@ func (o *Observer) pollAndRecord(ctx context.Context, target Target) error {
 	return nil
 }
 
+func CurrentSlotAt(observedAt time.Time, genesisTime, secondsPerSlot, genesisSlot uint64) (uint64, error) {
+	if secondsPerSlot == 0 {
+		return 0, errors.New("SECONDS_PER_SLOT must be positive")
+	}
+	unixSeconds := observedAt.Unix()
+	if unixSeconds < 0 || uint64(unixSeconds) < genesisTime {
+		return 0, fmt.Errorf("observation time %s precedes genesis time %d", observedAt.UTC().Format(time.RFC3339Nano), genesisTime)
+	}
+	slotsSinceGenesis := (uint64(unixSeconds) - genesisTime) / secondsPerSlot
+	if slotsSinceGenesis > math.MaxUint64-genesisSlot {
+		return 0, errors.New("current slot calculation overflows uint64")
+	}
+	return genesisSlot + slotsSinceGenesis, nil
+}
+
 func pollBeacon(ctx context.Context, client BeaconClient) (beacon.Head, beacon.Finality, error) {
-	var head beacon.Head
-	var finality beacon.Finality
-	group, groupContext := errgroup.WithContext(ctx)
-	group.Go(func() error {
-		value, err := client.Head(groupContext)
-		if err != nil {
-			return fmt.Errorf("fetch head: %w", err)
-		}
-		head = value
-		return nil
-	})
-	group.Go(func() error {
-		value, err := client.Finality(groupContext)
-		if err != nil {
-			return fmt.Errorf("fetch finality: %w", err)
-		}
-		finality = value
-		return nil
-	})
-	if err := group.Wait(); err != nil {
-		return beacon.Head{}, beacon.Finality{}, err
+	head, err := client.Head(ctx)
+	if err != nil {
+		return beacon.Head{}, beacon.Finality{}, fmt.Errorf("fetch head: %w", err)
+	}
+	finality, err := client.Finality(ctx, head.StateRoot)
+	if err != nil {
+		return beacon.Head{}, beacon.Finality{}, fmt.Errorf("fetch finality for head state %s: %w", head.StateRoot, err)
 	}
 	return head, finality, nil
 }
 
-func FinalityLag(headSlot, finalizedEpoch, slotsPerEpoch uint64) (uint64, error) {
+func FinalityLag(currentSlot, finalizedEpoch, slotsPerEpoch uint64) (uint64, error) {
 	if slotsPerEpoch == 0 {
 		return 0, errors.New("SLOTS_PER_EPOCH must be positive")
 	}
@@ -312,8 +353,8 @@ func FinalityLag(headSlot, finalizedEpoch, slotsPerEpoch uint64) (uint64, error)
 		return 0, errors.New("finalized epoch to slot conversion overflows uint64")
 	}
 	finalizedSlot := finalizedEpoch * slotsPerEpoch
-	if headSlot < finalizedSlot {
-		return 0, fmt.Errorf("head slot %d precedes finalized epoch start slot %d", headSlot, finalizedSlot)
+	if currentSlot < finalizedSlot {
+		return 0, fmt.Errorf("current slot %d precedes finalized epoch start slot %d", currentSlot, finalizedSlot)
 	}
-	return headSlot - finalizedSlot, nil
+	return currentSlot - finalizedSlot, nil
 }

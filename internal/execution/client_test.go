@@ -62,6 +62,36 @@ func TestSubscribeNewHeadsReadsValidatedNotification(t *testing.T) {
 	}
 }
 
+func TestChainID(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+		connection, err := websocket.Accept(response, request, nil)
+		if err != nil {
+			t.Errorf("accept WebSocket: %v", err)
+			return
+		}
+		defer connection.CloseNow()
+		_, body, err := connection.Read(request.Context())
+		if err != nil {
+			t.Errorf("read request: %v", err)
+			return
+		}
+		if string(body) != `{"jsonrpc":"2.0","id":1,"method":"eth_chainId","params":[]}` {
+			t.Errorf("request = %s", body)
+			return
+		}
+		_ = connection.Write(request.Context(), websocket.MessageText, []byte(`{"jsonrpc":"2.0","id":1,"result":"0x301824"}`))
+	}))
+	t.Cleanup(server.Close)
+	client, err := NewClient("ws"+strings.TrimPrefix(server.URL, "http"), time.Second)
+	if err != nil {
+		t.Fatalf("NewClient() error = %v", err)
+	}
+	chainID, err := client.ChainID(context.Background())
+	if err != nil || chainID != 3151908 {
+		t.Fatalf("ChainID() = %d, %v", chainID, err)
+	}
+}
+
 func TestNewClientRejectsInvalidEndpoints(t *testing.T) {
 	tests := []struct {
 		name     string

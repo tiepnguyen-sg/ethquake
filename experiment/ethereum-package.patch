@@ -1,0 +1,103 @@
+diff --git a/kurtosis.yml b/kurtosis.yml
+index 6b37a1c..563171c 100644
+--- a/kurtosis.yml
++++ b/kurtosis.yml
+@@ -1 +1,3 @@
+ name: "github.com/ethpandaops/ethereum-package"
++replace:
++  github.com/kurtosis-tech/prometheus-package: github.com/kurtosis-tech/prometheus-package@f3402ebad8cffe98eef990e41ca863f7e8746c21
+diff --git a/src/package_io/constants.star b/src/package_io/constants.star
+index c9ea771..5bfa827 100644
+--- a/src/package_io/constants.star
++++ b/src/package_io/constants.star
+@@ -110,7 +110,8 @@ DEFAULT_BOOTNODOOR_IMAGE = "ethpandaops/bootnodoor:latest"
+ DEFAULT_ETHEREUM_GENESIS_GENERATOR_IMAGE = (
+     "ethpandaops/ethereum-genesis-generator:5.3.5"
+ )
+-DEFAULT_YQ_IMAGE = "linuxserver/yq"
++DEFAULT_RUN_SH_IMAGE = "badouralix/curl-jq@sha256:1e7c0284e24572ace7170df9fc91f15fd3b79ebf056d4dde17244d5d74bbfabc"
++DEFAULT_YQ_IMAGE = "linuxserver/yq@sha256:05a738732cc72d5cfe6fbba8eea2ac6c3bff8e03f058f53be099c55990b4d785"
+ DEFAULT_FLASHBOTS_RELAY_IMAGE = "ethpandaops/mev-boost-relay:main"
+ DEFAULT_FLASHBOTS_BUILDER_IMAGE = "ethpandaops/reth-rbuilder:develop"
+ DEFAULT_FLASHBOTS_MEV_BOOST_IMAGE = "ethpandaops/mev-boost:develop"
+diff --git a/src/package_io/input_parser.star b/src/package_io/input_parser.star
+index c4905fd..d3677b8 100644
+--- a/src/package_io/input_parser.star
++++ b/src/package_io/input_parser.star
+@@ -2201,6 +2201,7 @@ def get_public_ip(plan, global_tolerations=[], global_node_selectors={}):
+     response = plan.run_sh(
+         name="get-public-ip",
+         description="Get the public IP address of the current machine",
++        image=constants.DEFAULT_RUN_SH_IMAGE,
+         run="curl -s https://ident.me",
+         tolerations=shared_utils.get_tolerations(global_tolerations=global_tolerations),
+         node_selectors=global_node_selectors,
+diff --git a/src/prelaunch_data_generator/el_cl_genesis/el_cl_genesis_generator.star b/src/prelaunch_data_generator/el_cl_genesis/el_cl_genesis_generator.star
+index 8c0fa84..f88319a 100644
+--- a/src/prelaunch_data_generator/el_cl_genesis/el_cl_genesis_generator.star
++++ b/src/prelaunch_data_generator/el_cl_genesis/el_cl_genesis_generator.star
+@@ -88,6 +88,7 @@ def generate_el_cl_genesis_data(
+     genesis_validators_root = plan.run_sh(
+         name="read-genesis-validators-root",
+         description="Reading genesis validators root",
++        image=constants.DEFAULT_RUN_SH_IMAGE,
+         run="cat /data/genesis_validators_root.txt",
+         files={"/data": genesis.files_artifacts[1]},
+         wait=None,
+@@ -98,6 +99,7 @@ def generate_el_cl_genesis_data(
+     osaka_time = plan.run_sh(
+         name="read-osaka-time",
+         description="Reading osaka time from genesis",
++        image=constants.DEFAULT_RUN_SH_IMAGE,
+         run="jq '.config.osakaTime' /data/genesis.json | tr -d '\n'",
+         files={"/data": genesis.files_artifacts[0]},
+         tolerations=shared_utils.get_tolerations(global_tolerations=global_tolerations),
+@@ -109,6 +111,7 @@ def generate_el_cl_genesis_data(
+         block_height_result = plan.run_sh(
+             name="read-shadowfork-block-height",
+             description="Reading shadowfork block height from latest_block.json",
++            image=constants.DEFAULT_RUN_SH_IMAGE,
+             run="printf '%d' $(jq -r '.result.number' /shadowfork/latest_block.json | tr -d '\n')",
+             files={"/shadowfork": latest_block},
+             tolerations=tolerations,
+diff --git a/src/prelaunch_data_generator/validator_keystores/validator_keystore_generator.star b/src/prelaunch_data_generator/validator_keystores/validator_keystore_generator.star
+index 0235966..35fb1e7 100644
+--- a/src/prelaunch_data_generator/validator_keystores/validator_keystore_generator.star
++++ b/src/prelaunch_data_generator/validator_keystores/validator_keystore_generator.star
+@@ -10,7 +10,7 @@ PRYSM_PASSWORD_FILEPATH_ON_GENERATOR = "/tmp/prysm-password.txt"
+ 
+ KEYSTORES_GENERATION_TOOL_NAME = "/app/eth2-val-tools"
+ 
+-ETH_VAL_TOOLS_IMAGE = "protolambda/eth2-val-tools:latest"
++ETH_VAL_TOOLS_IMAGE = "protolambda/eth2-val-tools@sha256:46147228f291266148a6a21a2b9541367ad5f70e619d79cd5393459baf539f58"
+ 
+ SUCCESSFUL_EXEC_CMD_EXIT_CODE = 0
+ 
+diff --git a/src/shared_utils/shared_utils.star b/src/shared_utils/shared_utils.star
+index 83147f8..9e1e62c 100644
+--- a/src/shared_utils/shared_utils.star
++++ b/src/shared_utils/shared_utils.star
+@@ -110,6 +110,7 @@ def get_devnet_enodes(plan, filename):
+     enode_list = plan.run_sh(
+         description="Getting devnet enodes",
+         files={constants.GENESIS_DATA_MOUNTPOINT_ON_CLIENTS: filename},
++        image=constants.DEFAULT_RUN_SH_IMAGE,
+         wait=None,
+         run="cat /network-configs/enodes.txt | tr -d ' ' | tr '\n' ',' | sed 's/,$//'",
+     )
+@@ -120,6 +121,7 @@ def get_devnet_enrs_list(plan, filename):
+     enr_list = plan.run_sh(
+         description="Creating devnet enrs list",
+         files={constants.GENESIS_DATA_MOUNTPOINT_ON_CLIENTS: filename},
++        image=constants.DEFAULT_RUN_SH_IMAGE,
+         wait=None,
+         run="cat /network-configs/bootstrap_nodes.txt | tr -d ' ' | tr '\n' ',' | sed 's/,$//'",
+     )
+@@ -173,6 +175,7 @@ def get_final_genesis_timestamp(plan, padding):
+     result = plan.run_sh(
+         description="Getting final genesis timestamp",
+         name="read-genesis-timestamp",
++        image=constants.DEFAULT_RUN_SH_IMAGE,
+         run="echo -n $(($(date +%s) + " + str(padding) + "))",
+         store=[StoreSpec(src="/tmp", name="final-genesis-timestamp")],
+     )

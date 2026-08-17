@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ethquake.dev/schemas/report-v1alpha1.json",
+  "title": "Ethquake Report v1alpha1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "scenario_name", "generated_at", "runs", "pairs", "control_minimum_progress", "fault_maximum_progress", "recovery_by_client", "gate_a", "gate_b", "gate_c", "conclusion"],
+  "properties": {
+    "schema_version": { "const": "ethquake.report/v1alpha1" },
+    "scenario_name": { "type": "string", "minLength": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "runs": { "type": "array", "minItems": 6, "maxItems": 6, "items": { "$ref": "run-v1alpha1.json" } },
+    "pairs": { "type": "array", "maxItems": 3, "items": { "$ref": "#/$defs/pair" } },
+    "control_minimum_progress": { "$ref": "#/$defs/statistic" },
+    "fault_maximum_progress": { "$ref": "#/$defs/statistic" },
+    "recovery_by_client": { "type": "object", "additionalProperties": { "$ref": "#/$defs/statistic" } },
+    "gate_a": { "$ref": "#/$defs/gate" },
+    "gate_b": { "$ref": "#/$defs/gate" },
+    "gate_c": { "$ref": "#/$defs/gate" },
+    "conclusion": { "type": "string", "minLength": 1 }
+  },
+  "$defs": {
+    "statistic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["values", "median", "min", "max"],
+      "properties": {
+        "values": { "type": "array", "items": { "type": "integer", "minimum": 0 } },
+        "median": { "type": "number", "minimum": 0 },
+        "min": { "type": "integer", "minimum": 0 },
+        "max": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repetition", "control_minimum_progress", "fault_maximum_progress", "conservative_difference"],
+      "properties": {
+        "repetition": { "type": "integer", "minimum": 1, "maximum": 3 },
+        "control_minimum_progress": { "type": "integer", "minimum": 0 },
+        "fault_maximum_progress": { "type": "integer", "minimum": 0 },
+        "conservative_difference": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["outcome", "classification", "reason"],
+      "properties": {
+        "outcome": { "enum": ["yes", "no", "not_evaluated"] },
+        "classification": { "type": "string", "minLength": 1 },
+        "reason": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

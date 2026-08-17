@@ -14,10 +14,14 @@ import (
 
 func TestClientReadsRecordedFixtures(t *testing.T) {
 	fixtures := map[string][]byte{
-		"/eth/v1/config/spec":                             readFixture(t, "spec.json"),
-		"/eth/v1/beacon/headers/head":                     readFixture(t, "head.json"),
-		"/eth/v1/beacon/states/head/finality_checkpoints": readFixture(t, "finality.json"),
+		"/eth/v1/config/spec":            readFixture(t, "spec.json"),
+		"/eth/v1/beacon/genesis":         readFixture(t, "genesis.json"),
+		"/eth/v1/beacon/headers/genesis": readFixture(t, "genesis_header.json"),
+		"/eth/v1/beacon/headers/head":    readFixture(t, "head.json"),
+		"/eth/v1/beacon/states/0x50849ff61ce8a3aa1533c65f4693c4ff76cda6b8e11f11b5078ea5fce5523a51/finality_checkpoints": readFixture(t, "finality.json"),
+		"/eth/v1/beacon/states/head/validators": readFixture(t, "validators.json"),
 	}
+
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		body, exists := fixtures[request.URL.Path]
 		if !exists {
@@ -32,6 +36,13 @@ func TestClientReadsRecordedFixtures(t *testing.T) {
 	client, err := NewClient(server.URL, time.Second)
 	if err != nil {
 		t.Fatalf("NewClient() error = %v", err)
+	}
+	genesis, err := client.Genesis(context.Background())
+	if err != nil {
+		t.Fatalf("Genesis() error = %v", err)
+	}
+	if genesis.Time != 1723888000 || genesis.Slot != 0 || genesis.ValidatorsRoot != rootValue('1') || genesis.ForkVersion != "0x10000038" {
+		t.Fatalf("Genesis() = %+v", genesis)
 	}
 
 	spec, err := client.Spec(context.Background())
@@ -53,16 +64,24 @@ func TestClientReadsRecordedFixtures(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Head() error = %v", err)
 	}
-	if head.Slot != 168 || head.Root != "0x90c8b7ff441b3aa4ae69026fb3a2265b9c5772118c5ea84ab1d48860006d49fc" || !head.Canonical || head.ExecutionOptimistic {
+	if head.Slot != 168 || head.Root != "0x90c8b7ff441b3aa4ae69026fb3a2265b9c5772118c5ea84ab1d48860006d49fc" || head.StateRoot != "0x50849ff61ce8a3aa1533c65f4693c4ff76cda6b8e11f11b5078ea5fce5523a51" || !head.Canonical || head.ExecutionOptimistic {
 		t.Fatalf("Head() = %+v", head)
 	}
 
-	finality, err := client.Finality(context.Background())
+	finality, err := client.Finality(context.Background(), head.StateRoot)
 	if err != nil {
 		t.Fatalf("Finality() error = %v", err)
 	}
 	if finality.Epoch != 3 || finality.Root != "0xe82f6634ae3efadc4aefe87761efe0a5df03dc5ca30eff1b372b30a2cdf2b44b" {
 		t.Fatalf("Finality() = %+v", finality)
+	}
+
+	validators, err := client.Validators(context.Background())
+	if err != nil {
+		t.Fatalf("Validators() error = %v", err)
+	}
+	if len(validators) != 4 || validators[3].Index != 3 || validators[3].EffectiveBalance != 32000000000 {
+		t.Fatalf("Validators() = %+v", validators)
 	}
 }
 
@@ -221,4 +240,8 @@ func readFixture(t *testing.T, name string) []byte {
 		t.Fatalf("read fixture %s: %v", name, err)
 	}
 	return contents
+}
+
+func rootValue(character byte) string {
+	return "0x" + strings.Repeat(string(character), 64)
 }

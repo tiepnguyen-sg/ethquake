@@ -26,6 +26,8 @@ type event struct {
 	Target           string            `json:"target,omitempty"`
 	Protocol         string            `json:"protocol,omitempty"`
 	Spec             *beacon.Spec      `json:"spec,omitempty"`
+	Genesis          *beacon.Genesis   `json:"genesis,omitempty"`
+	CurrentSlot      *uint64           `json:"current_slot,omitempty"`
 	Head             *beacon.Head      `json:"head,omitempty"`
 	Finality         *beacon.Finality  `json:"finality,omitempty"`
 	FinalityLagSlots *uint64           `json:"finality_lag_slots,omitempty"`
@@ -58,6 +60,7 @@ func (r *JSONLRecorder) RecordSpec(observation observer.SpecObservation) error {
 		Timestamp:     observation.Timestamp.Format("2006-01-02T15:04:05.000000000Z07:00"),
 		Target:        observation.Target,
 		Spec:          &observation.Spec,
+		Genesis:       &observation.Genesis,
 	})
 }
 
@@ -68,6 +71,7 @@ func (r *JSONLRecorder) RecordBeacon(observation observer.BeaconObservation) err
 		Type:             "beacon_observation",
 		Timestamp:        observation.Timestamp.Format("2006-01-02T15:04:05.000000000Z07:00"),
 		Target:           observation.Target,
+		CurrentSlot:      &observation.CurrentSlot,
 		Head:             &observation.Head,
 		Finality:         &observation.Finality,
 		FinalityLagSlots: &observation.FinalityLagSlots,

@@ -1,0 +1,28 @@
+{
+  "schema_version": "ethquake.dependencies/v1alpha1",
+  "ethereum_package": {
+    "repository": "https://github.com/ethpandaops/ethereum-package.git",
+    "revision": "c4a8e15d40f0965f3728f776d72f1954440ad96b",
+    "overlay_sha256": "c9e288e7e3abae83d53215c62cdeb426fde7874bd14496d294c4d552242b84eb"
+  },
+  "imported_packages": {
+    "github.com/kurtosis-tech/prometheus-package": "f3402ebad8cffe98eef990e41ca863f7e8746c21"
+  },
+  "runtime_images": {
+    "badouralix/curl-jq": "badouralix/curl-jq@sha256:1e7c0284e24572ace7170df9fc91f15fd3b79ebf056d4dde17244d5d74bbfabc",
+    "consensys/teku": "consensys/teku:26.8.0@sha256:3a4f5761ae1c441ea26ac1f32b774e15e06e49a9861185a07e29ca7a6c3e434e",
+    "ethereum/client-go": "ethereum/client-go:v1.17.5@sha256:523d3ba26623a619e912019068dc2784f02934070ac46bdae4d5b9df0d917814",
+    "ethpandaops/ethereum-genesis-generator": "ethpandaops/ethereum-genesis-generator:5.3.3@sha256:0761811d076e8674583037afe06620a40519a9a03ba845527e194427afc5421d",
+    "grafana/grafana": "grafana/grafana:13.1.3@sha256:ab5cb380e3ff3172d6c8bd2e7cfd31cce977d2881b260e1f5bc089bf0b759b43",
+    "linuxserver/yq": "linuxserver/yq@sha256:05a738732cc72d5cfe6fbba8eea2ac6c3bff8e03f058f53be099c55990b4d785",
+    "prom/prometheus": "prom/prometheus:v3.13.2@sha256:508729e0e2d18e11fd742a5a5ca70e557b940a93948c3c95fd0123a6fd538b69",
+    "protolambda/eth2-val-tools": "protolambda/eth2-val-tools@sha256:46147228f291266148a6a21a2b9541367ad5f70e619d79cd5393459baf539f58",
+    "ghcr.io/paradigmxyz/reth": "ghcr.io/paradigmxyz/reth:v2.5.0@sha256:c2f421a129b50a8d46a44e1fa6e8b843f491f3c4323f425dfb62496c4c832bc2",
+    "sigp/lighthouse": "sigp/lighthouse:v8.2.1@sha256:9538f53d8e11766e3cb5de1889b292074f8e518e0dabe6df13d9054d504d1d62"
+  },
+  "fault_runtime": {
+    "chaos_mesh_revision": "60ec97f1fd5d5edb2fb5c722c8888e18b618d1a0",
+    "controller_image": "ghcr.io/chaos-mesh/chaos-mesh:v2.8.3@sha256:bdb31f3121a2979361c2a12cfb2a7845b7e66dc7589dcde5f9457473b50c707f",
+    "daemon_image": "ghcr.io/chaos-mesh/chaos-daemon:v2.8.3@sha256:69b1d3c09cfa58df94f5be7e498591f88f5007f6d22ebeeeda1731cb37acd377"
+  }
+}

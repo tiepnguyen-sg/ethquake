@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -187,14 +188,19 @@ func (w *cancelWriter) String() string {
 
 func newBeaconFixtureServer(t *testing.T) *httptest.Server {
 	t.Helper()
+	genesisTime := time.Now().Unix() - 168*12
 	server := httptest.NewServer(http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		response.Header().Set("Content-Type", "application/json")
 		switch request.URL.Path {
 		case "/eth/v1/config/spec":
 			_, _ = response.Write([]byte(`{"data":{"SECONDS_PER_SLOT":"12","SLOTS_PER_EPOCH":"32","DENEB_FORK_EPOCH":"0"}}`))
+		case "/eth/v1/beacon/genesis":
+			_, _ = fmt.Fprintf(response, `{"data":{"genesis_time":"%d","genesis_validators_root":"0x4444444444444444444444444444444444444444444444444444444444444444","genesis_fork_version":"0x10000038"}}`, genesisTime)
+		case "/eth/v1/beacon/headers/genesis":
+			_, _ = response.Write([]byte(`{"data":{"canonical":true,"header":{"message":{"slot":"0"}}}}`))
 		case "/eth/v1/beacon/headers/head":
-			_, _ = response.Write([]byte(`{"execution_optimistic":false,"data":{"root":"0x1111111111111111111111111111111111111111111111111111111111111111","canonical":true,"header":{"message":{"slot":"168","parent_root":"0x2222222222222222222222222222222222222222222222222222222222222222"}}}}`))
-		case "/eth/v1/beacon/states/head/finality_checkpoints":
+			_, _ = response.Write([]byte(`{"execution_optimistic":false,"data":{"root":"0x1111111111111111111111111111111111111111111111111111111111111111","canonical":true,"header":{"message":{"slot":"168","parent_root":"0x2222222222222222222222222222222222222222222222222222222222222222","state_root":"0x5555555555555555555555555555555555555555555555555555555555555555"}}}}`))
+		case "/eth/v1/beacon/states/0x5555555555555555555555555555555555555555555555555555555555555555/finality_checkpoints":
 			_, _ = response.Write([]byte(`{"data":{"finalized":{"epoch":"3","root":"0x3333333333333333333333333333333333333333333333333333333333333333"}}}`))
 		default:
 			http.NotFound(response, request)

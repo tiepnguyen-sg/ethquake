@@ -1,0 +1,32 @@
+# Ethquake experiment report: cl-p2p-partition
+
+Generated: 2026-08-17T12:00:00Z
+
+## Gate outcome
+
+- Gate A — VALIDITY: YES — Every fault run was lower than control.
+- Gate B — SURPRISE: YES — The prediction matched.
+- Gate C — DIFFERENTIATION: YES — Teku recovered later in every repetition.
+
+Conclusion: `client_specific_differentiation`. This report does not classify any observed behavior as a client bug.
+
+## Finalized-epoch progress
+
+| Repetition | Control minimum | Fault maximum | Conservative difference |
+|---:|---:|---:|---:|
+| 1 | 3 | 0 | 3 |
+| 2 | 3 | 0 | 3 |
+| 3 | 3 | 0 | 3 |
+
+Control median 3.0 (range 3–3); fault median 0.0 (range 0–0).
+
+## Recovery time
+
+| CL client | Slots | Median | Range |
+|---|---|---:|---:|
+| lighthouse | 5, 5, 5 | 5.0 | 5–5 |
+| teku | 8, 8, 8 | 8.0 | 8–8 |
+
+## Evidence
+
+The JSON report preserves every run summary, paired effect, realized split, dependency closure, and measurement-completeness flag. The executed scenario and raw time series remain separate checksum-verified artifacts.

@@ -37,15 +37,48 @@ Output files are created with mode `0600` and never overwrite an existing file.
 
 The Observer records:
 
-- runtime `SECONDS_PER_SLOT`, `SLOTS_PER_EPOCH`, and fork epochs from every
-  Beacon API;
+- runtime `SECONDS_PER_SLOT`, `SLOTS_PER_EPOCH`, fork epochs, genesis time, and
+  genesis slot from every Beacon API;
 - canonical head and finality observations, optimistic-execution state, and
-  finality lag in slots;
+  finality lag in slots, using wall-clock `current_slot` from Beacon genesis
+  time and the genesis header rather than the latest block slot;
 - exact same-slot head-root comparisons;
 - execution `newHeads`, continuity gaps, and reorg depth when it is known;
 - explicit measurement gaps and instrument self-health metrics.
 
 Exact same-slot disagreement is a measurement, not an experimental verdict.
-Ethquake does not currently choose a `head_divergence_tolerance_slots` default
-or apply Gate A/B/C methodology. Unknown reorg depth is emitted as `null`, never
-as zero.
+The standalone Observer does not choose a `head_divergence_tolerance_slots`
+default or apply Gate A/B/C methodology. Unknown reorg depth is emitted as
+`null`, never as zero.
+
+## Phase 3 experiment
+
+The committed `cl-p2p-partition` protocol uses four participants, three paired
+control/fault repetitions, an exact validator-effective-balance split, and a
+three-epoch CL P2P partition. Its thresholds and run order are preregistered in
+the scenario and ADR-0004. Measurement windows use genesis-derived current
+slots, so empty block slots remain represented during the partition.
+
+Static preparation and validation do not create cloud resources:
+
+```sh
+make phase3-prepare
+make phase3-preflight
+```
+
+Preparation downloads the official locked Helm archive into the ignored
+repository cache and verifies its checksum; it does not install a host tool or
+change user configuration.
+
+`make phase3-run` is the single evidence-session command. It requires explicit
+GCP project, zone, billing-budget, exact GKE version, and session variables,
+plus `ETHQUAKE_CLOUD_AUTHORIZED=I_ACCEPT_GCP_CHARGES_AND_TEARDOWN`. It creates
+an ephemeral GKE cluster, installs the pinned Chaos Mesh chart, executes the
+committed run order, writes evidence to `runs/`, analyzes Gate A then B then C,
+and always attempts exact-label cluster teardown from an `EXIT` trap.
+
+The cloud preflight requires an existing USD 20 budget with a 100% alert
+threshold. It verifies that the requested GKE patch is currently available in
+the selected zone. The script uses only a session-local kubeconfig and rejects
+occupied or non-loopback host access ports. No GCP experiment has run merely
+because this automation exists.

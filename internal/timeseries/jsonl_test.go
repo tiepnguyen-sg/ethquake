@@ -26,13 +26,15 @@ func TestJSONLRecorderWritesVersionedEvents(t *testing.T) {
 			SlotsPerEpoch:  32,
 			ForkEpochs:     map[string]string{"DENEB_FORK_EPOCH": "0"},
 		},
+		Genesis: beacon.Genesis{Time: 1000, ValidatorsRoot: fixtureRoot('4'), ForkVersion: "0x10000038"},
 	}); err != nil {
 		t.Fatalf("RecordSpec() error = %v", err)
 	}
 	if err := recorder.RecordBeacon(observer.BeaconObservation{
 		Timestamp:        timestamp,
 		Target:           "lighthouse",
-		Head:             beacon.Head{Slot: 168, Root: fixtureRoot('1'), ParentRoot: fixtureRoot('2'), Canonical: true},
+		CurrentSlot:      168,
+		Head:             beacon.Head{Slot: 168, Root: fixtureRoot('1'), ParentRoot: fixtureRoot('2'), StateRoot: fixtureRoot('4'), Canonical: true},
 		Finality:         beacon.Finality{Epoch: 3, Root: fixtureRoot('3')},
 		FinalityLagSlots: 72,
 		PollDuration:     1500 * time.Microsecond,
@@ -51,8 +53,8 @@ func TestJSONLRecorderWritesVersionedEvents(t *testing.T) {
 	}
 
 	want := "" +
-		`{"schema_version":"ethquake.observer/v1alpha1","type":"runtime_spec","timestamp":"2026-08-17T12:30:00.000000123Z","target":"lighthouse","spec":{"seconds_per_slot":12,"slots_per_epoch":32,"fork_epochs":{"DENEB_FORK_EPOCH":"0"}}}` + "\n" +
-		`{"schema_version":"ethquake.observer/v1alpha1","type":"beacon_observation","timestamp":"2026-08-17T12:30:00.000000123Z","target":"lighthouse","head":{"slot":168,"root":"` + fixtureRoot('1') + `","parent_root":"` + fixtureRoot('2') + `","canonical":true,"execution_optimistic":false},"finality":{"epoch":3,"root":"` + fixtureRoot('3') + `","execution_optimistic":false},"finality_lag_slots":72,"poll_duration_ms":1.5}` + "\n" +
+		`{"schema_version":"ethquake.observer/v1alpha1","type":"runtime_spec","timestamp":"2026-08-17T12:30:00.000000123Z","target":"lighthouse","spec":{"seconds_per_slot":12,"slots_per_epoch":32,"fork_epochs":{"DENEB_FORK_EPOCH":"0"}},"genesis":{"time":1000,"slot":0,"validators_root":"` + fixtureRoot('4') + `","fork_version":"0x10000038"}}` + "\n" +
+		`{"schema_version":"ethquake.observer/v1alpha1","type":"beacon_observation","timestamp":"2026-08-17T12:30:00.000000123Z","target":"lighthouse","current_slot":168,"head":{"slot":168,"root":"` + fixtureRoot('1') + `","parent_root":"` + fixtureRoot('2') + `","state_root":"` + fixtureRoot('4') + `","canonical":true,"execution_optimistic":false},"finality":{"epoch":3,"root":"` + fixtureRoot('3') + `","execution_optimistic":false},"finality_lag_slots":72,"poll_duration_ms":1.5}` + "\n" +
 		`{"schema_version":"ethquake.observer/v1alpha1","type":"measurement_gap","timestamp":"2026-08-17T12:30:00.000000123Z","target":"lighthouse","protocol":"beacon","operation":"beacon_poll","error":"upstream unavailable","poll_duration_ms":2}` + "\n"
 	if output.String() != want {
 		t.Fatalf("output mismatch\n--- got ---\n%s--- want ---\n%s", output.String(), want)

@@ -13,23 +13,30 @@ import (
 )
 
 type fakeBeaconClient struct {
-	spec        beacon.Spec
-	head        beacon.Head
-	finality    beacon.Finality
-	specErr     error
-	headErr     error
-	finalityErr error
+	spec              beacon.Spec
+	genesis           beacon.Genesis
+	head              beacon.Head
+	finality          beacon.Finality
+	finalityStateRoot string
+	specErr           error
+	headErr           error
+	finalityErr       error
 }
 
 func (f *fakeBeaconClient) Spec(context.Context) (beacon.Spec, error) {
 	return f.spec, f.specErr
 }
 
+func (f *fakeBeaconClient) Genesis(context.Context) (beacon.Genesis, error) {
+	return f.genesis, nil
+}
+
 func (f *fakeBeaconClient) Head(context.Context) (beacon.Head, error) {
 	return f.head, f.headErr
 }
 
-func (f *fakeBeaconClient) Finality(context.Context) (beacon.Finality, error) {
+func (f *fakeBeaconClient) Finality(_ context.Context, stateRoot string) (beacon.Finality, error) {
+	f.finalityStateRoot = stateRoot
 	return f.finality, f.finalityErr
 }
 
@@ -77,14 +84,14 @@ func (r *memoryRecorder) RecordPollFailure(failure PollFailure) error {
 func TestObserverRecordsRuntimeSpecAndBeaconMeasurement(t *testing.T) {
 	client := &fakeBeaconClient{
 		spec:     beacon.Spec{SecondsPerSlot: 12, SlotsPerEpoch: 32},
-		head:     beacon.Head{Slot: 168, Root: root("1"), ParentRoot: root("2")},
+		head:     beacon.Head{Slot: 168, Root: root("1"), ParentRoot: root("2"), StateRoot: root("4")},
 		finality: beacon.Finality{Epoch: 3, Root: root("3")},
 	}
 	recorder := &memoryRecorder{}
 	observer, err := New(
 		[]Target{{Name: "lighthouse", Beacon: client}},
 		recorder,
-		Options{PollInterval: time.Second, HeadHistoryLimit: 16, Now: func() time.Time { return time.Unix(100, 0) }},
+		Options{PollInterval: time.Second, HeadHistoryLimit: 16, Now: func() time.Time { return time.Unix(2016, 0) }},
 	)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -105,6 +112,12 @@ func TestObserverRecordsRuntimeSpecAndBeaconMeasurement(t *testing.T) {
 	}
 	if recorder.beacons[0].FinalityLagSlots != 72 {
 		t.Fatalf("finality lag = %d, want 72", recorder.beacons[0].FinalityLagSlots)
+	}
+	if recorder.beacons[0].CurrentSlot != 168 {
+		t.Fatalf("current slot = %d, want 168", recorder.beacons[0].CurrentSlot)
+	}
+	if client.finalityStateRoot != client.head.StateRoot {
+		t.Fatalf("finality state root = %q, want %q", client.finalityStateRoot, client.head.StateRoot)
 	}
 	if len(recorder.failures) != 0 {
 		t.Fatalf("recorded failures = %d, want 0", len(recorder.failures))
@@ -182,7 +195,7 @@ func TestObserverRunStopsWhenContextIsCanceled(t *testing.T) {
 			Name: "lighthouse",
 			Beacon: &fakeBeaconClient{
 				spec:     beacon.Spec{SecondsPerSlot: 12, SlotsPerEpoch: 32},
-				head:     beacon.Head{Slot: 168, Root: root("1"), ParentRoot: root("2")},
+				head:     beacon.Head{Slot: 168, Root: root("1"), ParentRoot: root("2"), StateRoot: root("4")},
 				finality: beacon.Finality{Epoch: 3, Root: root("3")},
 			},
 		}},
@@ -223,6 +236,27 @@ func TestFinalityLag(t *testing.T) {
 				t.Fatalf("FinalityLag() = %d, want %d", got, test.want)
 			}
 		})
+	}
+}
+
+func TestCurrentSlotAtUsesGenesisTimeInsteadOfHeadProgress(t *testing.T) {
+	observedAt := time.Unix(1_000+12*168+11, 0)
+	slot, err := CurrentSlotAt(observedAt, 1_000, 12, 0)
+	if err != nil {
+		t.Fatalf("CurrentSlotAt() error = %v", err)
+	}
+	if slot != 168 {
+		t.Fatalf("CurrentSlotAt() = %d, want 168", slot)
+	}
+	withGenesisOffset, err := CurrentSlotAt(observedAt, 1_000, 12, 5)
+	if err != nil || withGenesisOffset != 173 {
+		t.Fatalf("CurrentSlotAt() with runtime genesis slot = %d, %v; want 173", withGenesisOffset, err)
+	}
+	if _, err := CurrentSlotAt(time.Unix(999, 0), 1_000, 12, 0); err == nil {
+		t.Fatal("CurrentSlotAt() accepted a pre-genesis timestamp")
+	}
+	if _, err := CurrentSlotAt(time.Unix(1012, 0), 1_000, 12, math.MaxUint64); err == nil {
+		t.Fatal("CurrentSlotAt() accepted an overflowing slot")
 	}
 }
 
