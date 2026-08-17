@@ -54,6 +54,25 @@ func TestBuildDiscoveryRejectsSplitParticipantServices(t *testing.T) {
 	}
 }
 
+func TestBuildDiscoveryRejectsUnexpectedExperimentWorkload(t *testing.T) {
+	value := readScenarioForKubernetes(t)
+	pods, nodes := discoveryFixtures(value)
+	pods = append(pods, fixturePod("unexpected", "unexpected", "node-a", pinnedImage("unexpected")))
+	if _, err := buildDiscovery(value, pods, nil, nodes); err == nil || !strings.Contains(err.Error(), "unexpected service ID") {
+		t.Fatalf("buildDiscovery() error = %v", err)
+	}
+}
+
+func TestBuildDiscoveryRequiresReadyChaosMeshWorkloads(t *testing.T) {
+	value := readScenarioForKubernetes(t)
+	pods, nodes := discoveryFixtures(value)
+	chaos := fixturePod("chaos-controller", "", "system", pinnedImage("chaos"))
+	chaos.Status.ContainerStatuses[0].Ready = false
+	if _, err := buildDiscovery(value, pods, []podResource{chaos}, nodes); err == nil || !strings.Contains(err.Error(), "not ready") {
+		t.Fatalf("buildDiscovery() error = %v", err)
+	}
+}
+
 func discoveryFixtures(value scenario.Scenario) ([]podResource, map[string]nodeResource) {
 	pods := make([]podResource, 0, 12)
 	nodes := make(map[string]nodeResource, 4)

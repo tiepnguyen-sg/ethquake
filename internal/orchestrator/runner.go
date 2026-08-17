@@ -345,46 +345,10 @@ func validateConfig(config Config) (experiment.Condition, uint64, error) {
 	if config.Namespace != expectedNamespace {
 		return "", 0, fmt.Errorf("namespace %q does not match exact run namespace %q", config.Namespace, expectedNamespace)
 	}
-	if err := validatePlacements(config.Scenario, config.Placements); err != nil {
+	if err := topology.ValidatePlacements(config.Scenario, config.Placements); err != nil {
 		return "", 0, err
 	}
 	return condition, repetition, nil
-}
-
-func validatePlacements(value scenario.Scenario, placements []topology.Placement) error {
-	if len(placements) != len(value.Spec.Topology.Participants) {
-		return fmt.Errorf("received %d placements; expected %d", len(placements), len(value.Spec.Topology.Participants))
-	}
-	byParticipant := make(map[string]topology.Placement, len(placements))
-	nodes := make(map[string]struct{}, len(placements))
-	referenceMachine := ""
-	referencePolicy := ""
-	for _, placement := range placements {
-		if placement.ParticipantID == "" || placement.Target == "" || placement.Pod == "" || placement.Node == "" || placement.NodePool == "" || placement.MachineType == "" || placement.ResourcePolicy == "" {
-			return errors.New("every placement field is required")
-		}
-		if _, duplicate := byParticipant[placement.ParticipantID]; duplicate {
-			return fmt.Errorf("participant placement %q is duplicated", placement.ParticipantID)
-		}
-		if _, duplicate := nodes[placement.Node]; duplicate {
-			return fmt.Errorf("node %q hosts more than one experiment participant", placement.Node)
-		}
-		if referenceMachine == "" {
-			referenceMachine = placement.MachineType
-			referencePolicy = placement.ResourcePolicy
-		} else if placement.MachineType != referenceMachine || placement.ResourcePolicy != referencePolicy {
-			return errors.New("participant machine types and resource policies are not equal")
-		}
-		byParticipant[placement.ParticipantID] = placement
-		nodes[placement.Node] = struct{}{}
-	}
-	for _, participant := range value.Spec.Topology.Participants {
-		placement, exists := byParticipant[participant.ID]
-		if !exists || placement.Target != participant.BeaconTarget {
-			return fmt.Errorf("participant %q lacks its exact target placement", participant.ID)
-		}
-	}
-	return nil
 }
 
 func partitionRequest(config Config, ttl time.Duration) fault.PartitionRequest {

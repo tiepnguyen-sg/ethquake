@@ -16,12 +16,12 @@ import (
 func TestValidatePlacementsRequiresControlledNodesAndResources(t *testing.T) {
 	value := readScenario(t)
 	placements := fixturePlacements(value)
-	if err := validatePlacements(value, placements); err != nil {
-		t.Fatalf("validatePlacements() error = %v", err)
+	if err := topology.ValidatePlacements(value, placements); err != nil {
+		t.Fatalf("topology.ValidatePlacements() error = %v", err)
 	}
 	placements[1].Node = placements[0].Node
-	if err := validatePlacements(value, placements); err == nil || !strings.Contains(err.Error(), "more than one") {
-		t.Fatalf("validatePlacements() error = %v", err)
+	if err := topology.ValidatePlacements(value, placements); err == nil || !strings.Contains(err.Error(), "more than one") {
+		t.Fatalf("topology.ValidatePlacements() error = %v", err)
 	}
 }
 

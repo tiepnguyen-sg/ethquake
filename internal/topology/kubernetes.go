@@ -180,6 +180,12 @@ type nodeResource struct {
 func buildDiscovery(value scenario.Scenario, userPods, chaosPods []podResource, nodes map[string]nodeResource) (Discovery, error) {
 	podsByService := make(map[string][]podResource)
 	runtimeImages := make(map[string]string)
+	expectedServices := make(map[string]struct{}, len(value.Spec.Topology.Participants)*3)
+	for _, participant := range value.Spec.Topology.Participants {
+		expectedServices[participant.ExecutionServiceID] = struct{}{}
+		expectedServices[participant.BeaconServiceID] = struct{}{}
+		expectedServices[participant.ValidatorServiceID] = struct{}{}
+	}
 	for _, namespacedPods := range []struct {
 		namespace string
 		pods      []podResource
@@ -188,11 +194,17 @@ func buildDiscovery(value scenario.Scenario, userPods, chaosPods []podResource, 
 			if pod.Metadata.Name == "" || len(pod.Spec.Containers) == 0 {
 				return Discovery{}, errors.New("discovered Pod has no name or containers")
 			}
+			if err := requireReady(pod); err != nil {
+				return Discovery{}, err
+			}
 			workloadID := "runtime"
 			if namespacedPods.namespace == "experiment" {
 				serviceID := pod.Metadata.Labels[serviceIDLabel]
 				if serviceID == "" {
 					return Discovery{}, fmt.Errorf("experiment Pod %q has no stable Kurtosis service ID", pod.Metadata.Name)
+				}
+				if _, expected := expectedServices[serviceID]; !expected {
+					return Discovery{}, fmt.Errorf("experiment Pod %q has unexpected service ID %q", pod.Metadata.Name, serviceID)
 				}
 				podsByService[serviceID] = append(podsByService[serviceID], pod)
 				workloadID = serviceID
