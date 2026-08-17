@@ -91,6 +91,18 @@ Preparation downloads the official locked Helm archive into the ignored
 repository cache and verifies its checksum; it does not install a host tool,
 change user configuration, authenticate to AWS, or create a cloud resource.
 
+The fault backend can be exercised locally against a disposable kind cluster:
+
+```sh
+make phase3-chaos-e2e
+```
+
+This installs the pinned Chaos Mesh chart, verifies a real network partition,
+automatic TTL recovery, idempotent reversion, and exact cluster cleanup. It
+uses a repository-local kubeconfig and does not modify the retained development
+cluster or the global Kubernetes context. This smoke test is not Phase 3
+experimental evidence.
+
 The Phase 3 cloud runner is being migrated to AWS under
 [ADR-0006](docs/adr/ADR-0006-phase3-cloud-provider.md). `make phase3-run` is a
 fail-safe placeholder that exits before any cloud API call. No cloud experiment

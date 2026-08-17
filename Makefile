@@ -7,7 +7,8 @@ GO ?= go
 	access-smoke kurtosis devnet-up devnet-down devnet-status devnet-verify \
 	go-preflight fmt fmt-check test test-race test-e2e vet build verify \
 	scenario-validate phase3-prepare phase3-preflight phase3-dry-run \
-	phase3-runner-test phase3-aws-preflight-test phase3-aws-preflight phase3-run
+	phase3-chaos-e2e phase3-runner-test phase3-aws-preflight-test \
+	phase3-aws-preflight phase3-run
 preflight:
 	@PATH="$(ETHQUAKE_LOCAL_BIN):$(PATH)" ./scripts/devnet/preflight.sh
 
@@ -89,6 +90,9 @@ phase3-preflight: build
 
 phase3-dry-run: build
 	@ETHQUAKE_SESSION_ID="$(ETHQUAKE_SESSION_ID)" ./scripts/experiment/phase3.sh dry-run
+
+phase3-chaos-e2e: go-preflight
+	@PATH="$(ETHQUAKE_LOCAL_BIN):$(PATH)" GO="$(GO)" ./scripts/experiment/chaos-mesh-e2e.sh
 
 phase3-runner-test: build
 	@./scripts/experiment/phase3-runner-test.sh
