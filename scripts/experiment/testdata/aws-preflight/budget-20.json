@@ -1,0 +1,11 @@
+{
+  "Budget": {
+    "BudgetName": "ethquake-phase3",
+    "BudgetLimit": {
+      "Amount": "20.0",
+      "Unit": "USD"
+    },
+    "BudgetType": "COST",
+    "TimeUnit": "MONTHLY"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "Notifications": [
+    {
+      "NotificationType": "ACTUAL",
+      "ComparisonOperator": "GREATER_THAN",
+      "Threshold": 100.0,
+      "ThresholdType": "PERCENTAGE",
+      "NotificationState": "OK"
+    }
+  ]
+}

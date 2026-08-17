@@ -31,6 +31,12 @@ verifies plan eligibility, regional capacity and quotas, available Kubernetes
 versions, and cost controls. Do not create cloud resources during that
 preflight.
 
+The account preflight may use only identity, Free Tier, Service Quotas, EKS
+catalog, and Budgets read operations. Its command contract is verified against
+a fake AWS CLI before it is used with a real account. Reading the EKS catalog
+does not establish permission to create an EKS cluster, so substrate selection
+remains a separate decision.
+
 The replacement runner must preserve the accepted methodology, dependency
 closure, off-cluster evidence, ownership, budget, and unconditional teardown
 guards. No evidence session may run until it passes objective preflight and the
@@ -49,6 +55,10 @@ account inspection would make the same capacity assumption.
 `make phase3-run` is an intentional fail-safe refusal. Phase 3 implementation
 is incomplete until account preflight selects and verifies the AWS substrate
 and the real runner replaces that refusal.
+
+`make phase3-aws-preflight` implements the read-only account measurements, and
+its success and failure paths are fixture-tested locally. It has not passed
+against an activated account yet.
 
 The scenario, Observer, fault backend, analysis, reports, and static dependency
 preparation remain provider-independent and reusable.

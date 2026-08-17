@@ -1,0 +1,10 @@
+{
+  "Quota": {
+    "ServiceCode": "ec2",
+    "QuotaCode": "L-34B43A08",
+    "QuotaName": "All Standard Spot Instance Requests",
+    "Value": 5.0,
+    "Adjustable": true,
+    "GlobalQuota": false
+  }
+}

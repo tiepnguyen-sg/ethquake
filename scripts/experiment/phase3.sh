@@ -66,6 +66,7 @@ printf '[PLAN] kubernetes_context=%s\n' "$PHASE3_KUBERNETES_CONTEXT"
 printf '[PLAN] run_order=%s\n' "$PHASE3_RUN_ORDER"
 printf '[PLAN] cloud_api_calls=false\n'
 printf '[PLAN] resource_creation=false\n'
+printf '[PLAN] account_preflight=not_run\n'
 printf '[PLAN] account_plan=unverified\n'
 printf '[PLAN] compute_substrate=unselected\n'
 printf '[PLAN] region=unselected\n'

@@ -1,0 +1,5 @@
+{
+  "UserId": "AROATEST:ethquake",
+  "Account": "123456789012",
+  "Arn": "arn:aws:sts::123456789012:assumed-role/ReadOnly/ethquake"
+}

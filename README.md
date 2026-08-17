@@ -66,6 +66,19 @@ gates without requiring AWS credentials or calling a cloud API:
 make phase3-dry-run ETHQUAKE_SESSION_ID=local-check
 ```
 
+The AWS account preflight is also tested locally against a fake AWS CLI and
+committed response fixtures. Once an account is active and an explicit CLI
+profile exists, run the real read-only checks with a candidate region:
+
+```sh
+AWS_PROFILE=ethquake AWS_REGION=ap-southeast-1 make phase3-aws-preflight
+```
+
+This command reads identity, Free-plan state, remaining credits, regional Spot
+quota, the EKS version catalog, and the locked USD 20 budget alert. It neither
+changes account configuration nor creates resources. EKS read access alone is
+not treated as proof that Free-plan cluster creation is allowed.
+
 For a fuller local readiness check, prepare the locked dependencies and verify
 the local container, Kubernetes, Helm, port, and scenario prerequisites:
 
@@ -81,8 +94,8 @@ change user configuration, authenticate to AWS, or create a cloud resource.
 The Phase 3 cloud runner is being migrated to AWS under
 [ADR-0006](docs/adr/ADR-0006-phase3-cloud-provider.md). `make phase3-run` is a
 fail-safe placeholder that exits before any cloud API call. No cloud experiment
-is authorized until the AWS account-specific preflight, provisioning, cost
-controls, and teardown are implemented and verified.
+is authorized until the AWS account-specific preflight passes and provisioning,
+cost controls, and teardown are implemented and verified.
 
 The replacement preflight must verify the account plan, service eligibility,
 regional capacity for the required 16 vCPUs, Kubernetes version, budget alerts,
