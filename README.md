@@ -91,6 +91,12 @@ Preparation downloads the official locked Helm archive into the ignored
 repository cache and verifies its checksum; it does not install a host tool,
 change user configuration, authenticate to AWS, or create a cloud resource.
 
+`make test` also drives the complete committed six-run order against a
+deterministic in-process Beacon fixture. It exercises orchestration, fault
+lifecycle, checksum-protected evidence loading, Gate A/B/C analysis, and
+JSON/Markdown/SVG report generation. These fixture outputs are not Phase 3
+experimental evidence.
+
 The fault backend can be exercised locally against a disposable kind cluster:
 
 ```sh
