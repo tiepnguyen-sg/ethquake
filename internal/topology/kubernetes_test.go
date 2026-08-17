@@ -9,6 +9,15 @@ import (
 	"github.com/tiepnguyen-sg/ethquake/internal/scenario"
 )
 
+func TestNewKubernetesAllowsOnlyAWSPhase3Context(t *testing.T) {
+	if _, err := NewKubernetes("kubectl", "kubeconfig", "ethquake-aws-phase3"); err != nil {
+		t.Fatalf("NewKubernetes() error = %v", err)
+	}
+	if _, err := NewKubernetes("kubectl", "kubeconfig", "untrusted-context"); err == nil {
+		t.Fatal("NewKubernetes() accepted an untrusted context")
+	}
+}
+
 func TestBuildDiscoveryRequiresPinnedImagesAndControlledPlacement(t *testing.T) {
 	value := readScenarioForKubernetes(t)
 	pods, nodes := discoveryFixtures(value)
@@ -56,8 +65,8 @@ func discoveryFixtures(value scenario.Scenario) ([]podResource, map[string]nodeR
 		var node nodeResource
 		node.Metadata.Name = nodeName
 		node.Metadata.Labels = map[string]string{
-			nodePoolLabel:    "ethquake-p" + string(rune('1'+index)),
-			machineTypeLabel: "n2-standard-4",
+			placementLabel:   "ethquake-p" + string(rune('1'+index)),
+			machineTypeLabel: "candidate-instance",
 		}
 		nodes[nodeName] = node
 	}

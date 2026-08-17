@@ -6,9 +6,8 @@ Status: Accepted
 
 The GCP preflight found zero preemptible CPU quota on the Free Trial account.
 The owner declined a billable-account upgrade, closed billing, scheduled the
-dedicated project for deletion, and directed Phase 3 to AWS. The repository
-still contains a GKE-specific runner that must not be mistaken for an
-authorized evidence path.
+dedicated project for deletion, and directed Phase 3 to AWS. The retired GKE
+implementation has been removed from the active runner and configuration.
 
 The [AWS Free plan documentation](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/free-tier-plans.html)
 does not establish EKS availability. [EKS pricing](https://aws.amazon.com/eks/pricing/)
@@ -21,6 +20,11 @@ must be measured against the actual account.
 
 Use AWS as the target Phase 3 cloud provider and retire the existing GCP runner
 from the allowed workflow.
+
+Implement a local-first AWS dry-run that validates the committed experiment
+inputs and reports every unresolved account-specific gate. It must not require
+AWS credentials, call a cloud API, or create resources. The real-run entrypoint
+must fail before cloud access until those gates and teardown are implemented.
 
 Do not select EKS or self-managed Kubernetes until a read-only account preflight
 verifies plan eligibility, regional capacity and quotas, available Kubernetes
@@ -41,8 +45,10 @@ account inspection would make the same capacity assumption.
 
 ## Consequences
 
-The current `make phase3-run` path is retired and undocumented as a runnable
-command. Phase 3 implementation is incomplete until the AWS runner replaces it.
+`make phase3-dry-run` is the only AWS runner mode currently implemented.
+`make phase3-run` is an intentional fail-safe refusal. Phase 3 implementation
+is incomplete until account preflight selects and verifies the AWS substrate
+and the real runner replaces that refusal.
 
 The scenario, Observer, fault backend, analysis, reports, and static dependency
 preparation remain provider-independent and reusable.

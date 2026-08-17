@@ -20,7 +20,7 @@ const (
 	runIDLabel        = "dev.ethquake.run-id"
 	serviceIDLabel    = "kurtosistech.com/id"
 	resourceTypeLabel = "kurtosistech.com/resource-type"
-	nodePoolLabel     = "cloud.google.com/gke-nodepool"
+	placementLabel    = "dev.ethquake.participant"
 	machineTypeLabel  = "node.kubernetes.io/instance-type"
 )
 
@@ -45,7 +45,7 @@ func NewKubernetes(kubectlPath, kubeconfigPath, contextName string) (*Kubernetes
 	if err != nil {
 		return nil, fmt.Errorf("resolve kubeconfig path: %w", err)
 	}
-	if contextName != "gke-ethquake-phase3" {
+	if contextName != "ethquake-aws-phase3" {
 		return nil, fmt.Errorf("Kubernetes context %q is not the Phase 3 evidence context", contextName)
 	}
 	return &Kubernetes{runner: &kubectlExec{
@@ -258,7 +258,7 @@ func buildDiscovery(value scenario.Scenario, userPods, chaosPods []podResource, 
 			Target:         participant.BeaconTarget,
 			Pod:            beaconPod,
 			Node:           participantNode,
-			NodePool:       node.Metadata.Labels[nodePoolLabel],
+			NodePool:       node.Metadata.Labels[placementLabel],
 			MachineType:    node.Metadata.Labels[machineTypeLabel],
 			ResourcePolicy: string(policyJSON),
 		})

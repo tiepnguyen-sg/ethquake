@@ -21,7 +21,7 @@ participants:
     vc_max_mem: 1024
     validator_count: 32
     node_selectors:
-      cloud.google.com/gke-nodepool: ethquake-p1
+      dev.ethquake.participant: ethquake-p1
   - el_type: reth
     el_image: ghcr.io/paradigmxyz/reth:v2.5.0@sha256:c2f421a129b50a8d46a44e1fa6e8b843f491f3c4323f425dfb62496c4c832bc2
     el_storage_type: full
@@ -44,7 +44,7 @@ participants:
     vc_max_mem: 1024
     validator_count: 32
     node_selectors:
-      cloud.google.com/gke-nodepool: ethquake-p2
+      dev.ethquake.participant: ethquake-p2
   - el_type: geth
     el_image: ethereum/client-go:v1.17.5@sha256:523d3ba26623a619e912019068dc2784f02934070ac46bdae4d5b9df0d917814
     el_storage_type: full
@@ -67,7 +67,7 @@ participants:
     vc_max_mem: 1024
     validator_count: 32
     node_selectors:
-      cloud.google.com/gke-nodepool: ethquake-p3
+      dev.ethquake.participant: ethquake-p3
   - el_type: reth
     el_image: ghcr.io/paradigmxyz/reth:v2.5.0@sha256:c2f421a129b50a8d46a44e1fa6e8b843f491f3c4323f425dfb62496c4c832bc2
     el_storage_type: full
@@ -90,7 +90,7 @@ participants:
     vc_max_mem: 1024
     validator_count: 32
     node_selectors:
-      cloud.google.com/gke-nodepool: ethquake-p4
+      dev.ethquake.participant: ethquake-p4
 
 network_params:
   network: kurtosis

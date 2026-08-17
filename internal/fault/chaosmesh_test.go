@@ -10,6 +10,17 @@ import (
 	"time"
 )
 
+func TestNewChaosMeshContextAllowlist(t *testing.T) {
+	for _, contextName := range []string{"kind-ethquake", "ethquake-aws-phase3"} {
+		if _, err := NewChaosMesh("kubectl", "kubeconfig", contextName); err != nil {
+			t.Fatalf("NewChaosMesh(%q) error = %v", contextName, err)
+		}
+	}
+	if _, err := NewChaosMesh("kubectl", "kubeconfig", "untrusted-context"); err == nil {
+		t.Fatal("NewChaosMesh() accepted an untrusted context")
+	}
+}
+
 type runnerCall struct {
 	stdin     []byte
 	arguments []string

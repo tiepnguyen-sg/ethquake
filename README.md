@@ -59,7 +59,15 @@ three-epoch CL P2P partition. Its thresholds and run order are preregistered in
 the scenario and ADR-0004. Measurement windows use genesis-derived current
 slots, so empty block slots remain represented during the partition.
 
-Static preparation and validation do not create cloud resources:
+The AWS dry-run validates the committed inputs and prints the unresolved account
+gates without requiring AWS credentials or calling a cloud API:
+
+```sh
+make phase3-dry-run ETHQUAKE_SESSION_ID=local-check
+```
+
+For a fuller local readiness check, prepare the locked dependencies and verify
+the local container, Kubernetes, Helm, port, and scenario prerequisites:
 
 ```sh
 make phase3-prepare
@@ -67,14 +75,14 @@ make phase3-preflight
 ```
 
 Preparation downloads the official locked Helm archive into the ignored
-repository cache and verifies its checksum; it does not install a host tool or
-change user configuration.
+repository cache and verifies its checksum; it does not install a host tool,
+change user configuration, authenticate to AWS, or create a cloud resource.
 
 The Phase 3 cloud runner is being migrated to AWS under
-[ADR-0006](docs/adr/ADR-0006-phase3-cloud-provider.md). The existing
-`make phase3-run` implementation is retired and must not be used for evidence.
-No cloud experiment is authorized until its AWS replacement and
-account-specific preflight are implemented and verified.
+[ADR-0006](docs/adr/ADR-0006-phase3-cloud-provider.md). `make phase3-run` is a
+fail-safe placeholder that exits before any cloud API call. No cloud experiment
+is authorized until the AWS account-specific preflight, provisioning, cost
+controls, and teardown are implemented and verified.
 
 The replacement preflight must verify the account plan, service eligibility,
 regional capacity for the required 16 vCPUs, Kubernetes version, budget alerts,

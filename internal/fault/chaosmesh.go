@@ -41,7 +41,7 @@ func NewChaosMesh(kubectlPath, kubeconfigPath, contextName string) (*ChaosMesh, 
 	if err != nil {
 		return nil, fmt.Errorf("resolve kubeconfig path: %w", err)
 	}
-	if contextName != "kind-ethquake" && contextName != "gke-ethquake-phase3" {
+	if contextName != "kind-ethquake" && contextName != "ethquake-aws-phase3" {
 		return nil, fmt.Errorf("Kubernetes context %q is not allowlisted", contextName)
 	}
 	return &ChaosMesh{runner: &execRunner{

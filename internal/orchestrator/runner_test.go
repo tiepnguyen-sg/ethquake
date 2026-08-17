@@ -104,7 +104,7 @@ func fixturePlacements(value scenario.Scenario) []topology.Placement {
 			Pod:            "cl-pod-" + participant.ID,
 			Node:           "node-" + string(rune('a'+index)),
 			NodePool:       "pool-" + string(rune('a'+index)),
-			MachineType:    "n2-standard-4",
+			MachineType:    "candidate-instance",
 			ResourcePolicy: "el=1-2cpu,2-4Gi;cl=1-2cpu,2-4Gi;vc=.25-.5cpu,.5-1Gi",
 		})
 	}

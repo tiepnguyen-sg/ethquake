@@ -59,14 +59,14 @@ case "$start_engine_if_missing" in
         ;;
 esac
 case "$expected_context" in
-    kind-ethquake|gke-ethquake-phase3)
+    kind-ethquake|ethquake-aws-phase3)
         ;;
     *)
         die "Kubernetes context is outside the Ethquake access allowlist: $expected_context"
         ;;
 esac
 case "$storage_class" in
-    standard|standard-rwo)
+    standard)
         ;;
     *)
         die "Storage class is outside the Ethquake access allowlist: $storage_class"
