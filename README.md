@@ -103,3 +103,8 @@ ownership tags, session-local kubeconfig, and teardown trap before creating a
 cluster. The evidence-session workflow will continue to install the pinned
 Chaos Mesh chart, execute the committed run order, preserve evidence under
 `runs/`, and analyze Gate A then B then C.
+
+The preregistered
+[Phase 3 publication outline](docs/publication/phase3-writeup.md) fixes the
+claim boundaries and evidence placeholders before results exist. It is not an
+experiment report and must not be populated from local smoke tests.
