@@ -98,8 +98,9 @@ make phase3-chaos-e2e
 ```
 
 This installs the pinned Chaos Mesh chart, verifies a real network partition,
-automatic TTL recovery, idempotent reversion, and exact cluster cleanup. It
-uses a repository-local kubeconfig and does not modify the retained development
+kills the standalone fault runner with `SIGKILL`, then verifies independent TTL
+recovery, idempotent reversion, and exact cluster cleanup. It uses a
+repository-local kubeconfig and does not modify the retained development
 cluster or the global Kubernetes context. This smoke test is not Phase 3
 experimental evidence.
 

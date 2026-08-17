@@ -34,10 +34,16 @@ context_name=kind-ethquake-chaos-smoke
 release_name=ethquake-chaos-smoke
 namespace=kt-ethquake-phase3-local-smoke
 run_id=local-smoke
+deadman_namespace=kt-ethquake-phase3-local-deadman
+deadman_run_id=local-deadman
 cache_root="$repository_root/.cache/experiment/chaos-smoke"
 kubeconfig="$cache_root/kubeconfig"
+test_binary="$cache_root/chaos-fault-e2e.test"
+deadman_ready_file="$cache_root/deadman-ready"
+deadman_runner_log="$cache_root/deadman-runner.log"
 owns_cluster=false
 test_complete=false
+deadman_runner_pid=
 
 global_context() {
     "$kubectl_bin" config current-context 2>/dev/null || true
@@ -45,7 +51,19 @@ global_context() {
 
 initial_global_context=$(global_context)
 
+stop_deadman_runner() {
+    if [ -z "$deadman_runner_pid" ]; then
+        return
+    fi
+    if kill -0 "$deadman_runner_pid" 2>/dev/null; then
+        kill -KILL "$deadman_runner_pid" 2>/dev/null || true
+    fi
+    wait "$deadman_runner_pid" 2>/dev/null || true
+    deadman_runner_pid=
+}
+
 cleanup() {
+    stop_deadman_runner
     if [ "$owns_cluster" = true ]; then
         if [ "$test_complete" = false ] && [ -r "$kubeconfig" ]; then
             printf '[INFO] Chaos Mesh E2E diagnostics follow\n' >&2
@@ -62,7 +80,7 @@ cleanup() {
         fi
         "$kind_bin" delete cluster --name "$cluster_name" >/dev/null 2>&1 || true
     fi
-    rm -f -- "$kubeconfig"
+    rm -f -- "$kubeconfig" "$test_binary" "$deadman_ready_file" "$deadman_runner_log"
     if [ "$(global_context)" != "$initial_global_context" ]; then
         printf '[FAIL] Global Kubernetes context changed during Chaos Mesh E2E test\n' >&2
         return 1
@@ -130,7 +148,7 @@ case "$cache_root" in
     *) die "Smoke cache is outside the Ethquake-owned path" ;;
 esac
 mkdir -p -- "$cache_root"
-rm -f -- "$kubeconfig"
+rm -f -- "$kubeconfig" "$test_binary" "$deadman_ready_file" "$deadman_runner_log"
 
 owns_cluster=true
 "$kind_bin" create cluster \
@@ -157,37 +175,87 @@ fi
 "$kubectl_bin" --kubeconfig "$kubeconfig" --context "$context_name" \
     --namespace chaos-mesh rollout status daemonset/chaos-daemon --timeout=180s
 
-"$kubectl_bin" --kubeconfig "$kubeconfig" --context "$context_name" \
-    create namespace "$namespace"
-"$kubectl_bin" --kubeconfig "$kubeconfig" --context "$context_name" \
-    label namespace "$namespace" \
-    dev.ethquake.managed=true \
-    dev.ethquake.phase=3 \
-    dev.ethquake.run-id="$run_id"
-"$kubectl_bin" --kubeconfig "$kubeconfig" --context "$context_name" \
-    annotate namespace "$namespace" chaos-mesh.org/inject=enabled
+create_test_workload() {
+    target_namespace=$1
+    target_run_id=$2
+    pod_a=$3
+    pod_b=$4
 
-for pod in smoke-a smoke-b; do
     "$kubectl_bin" --kubeconfig "$kubeconfig" --context "$context_name" \
-        --namespace "$namespace" run "$pod" \
-        --image "$DEVNET_ACCESS_SMOKE_IMAGE" \
-        --labels "dev.ethquake.managed=true,dev.ethquake.phase=3,dev.ethquake.run-id=$run_id" \
-        --restart Never
-done
-"$kubectl_bin" --kubeconfig "$kubeconfig" --context "$context_name" \
-    --namespace "$namespace" wait \
-    --for=condition=Ready pod/smoke-a pod/smoke-b --timeout=180s
+        create namespace "$target_namespace"
+    "$kubectl_bin" --kubeconfig "$kubeconfig" --context "$context_name" \
+        label namespace "$target_namespace" \
+        dev.ethquake.managed=true \
+        dev.ethquake.phase=3 \
+        dev.ethquake.run-id="$target_run_id"
+    "$kubectl_bin" --kubeconfig "$kubeconfig" --context "$context_name" \
+        annotate namespace "$target_namespace" chaos-mesh.org/inject=enabled
+
+    for pod_name in "$pod_a" "$pod_b"; do
+        "$kubectl_bin" --kubeconfig "$kubeconfig" --context "$context_name" \
+            --namespace "$target_namespace" run "$pod_name" \
+            --image "$DEVNET_ACCESS_SMOKE_IMAGE" \
+            --labels "dev.ethquake.managed=true,dev.ethquake.phase=3,dev.ethquake.run-id=$target_run_id" \
+            --restart Never
+    done
+    "$kubectl_bin" --kubeconfig "$kubeconfig" --context "$context_name" \
+        --namespace "$target_namespace" wait \
+        --for=condition=Ready "pod/$pod_a" "pod/$pod_b" --timeout=180s
+}
+
+create_test_workload "$namespace" "$run_id" smoke-a smoke-b
+create_test_workload "$deadman_namespace" "$deadman_run_id" deadman-a deadman-b
+
+GOTOOLCHAIN=local "$go_binary" test -c -tags=e2e \
+    -o "$test_binary" ./internal/fault
 
 ETHQUAKE_CHAOS_E2E_KUBECTL=$kubectl_bin \
 ETHQUAKE_CHAOS_E2E_KUBECONFIG=$kubeconfig \
 ETHQUAKE_CHAOS_E2E_CONTEXT=$context_name \
-GOTOOLCHAIN=local "$go_binary" test -count=1 -tags=e2e \
-    -run '^TestChaosMeshAgainstDisposableKind$' ./internal/fault
+    "$test_binary" -test.v -test.run '^TestChaosMeshAgainstDisposableKind$'
+
+ETHQUAKE_CHAOS_E2E_KUBECTL=$kubectl_bin \
+ETHQUAKE_CHAOS_E2E_KUBECONFIG=$kubeconfig \
+ETHQUAKE_CHAOS_E2E_CONTEXT=$context_name \
+ETHQUAKE_CHAOS_E2E_READY_FILE=$deadman_ready_file \
+    "$test_binary" -test.v -test.run '^TestChaosMeshDeadmanRunner$' \
+    >"$deadman_runner_log" 2>&1 &
+deadman_runner_pid=$!
+
+ready_wait_seconds=0
+while [ ! -f "$deadman_ready_file" ]; do
+    if ! kill -0 "$deadman_runner_pid" 2>/dev/null; then
+        wait "$deadman_runner_pid" 2>/dev/null || true
+        deadman_runner_pid=
+        sed -n '1,160p' "$deadman_runner_log" >&2
+        die "Deadman runner exited before confirming fault injection"
+    fi
+    if [ "$ready_wait_seconds" -ge 60 ]; then
+        sed -n '1,160p' "$deadman_runner_log" >&2
+        die "Timed out waiting for deadman runner fault injection"
+    fi
+    sleep 1
+    ready_wait_seconds=$((ready_wait_seconds + 1))
+done
+
+if ! kill -KILL "$deadman_runner_pid"; then
+    die "Could not SIGKILL the deadman runner"
+fi
+if wait "$deadman_runner_pid" 2>/dev/null; then
+    die "Deadman runner exited successfully after SIGKILL"
+fi
+deadman_runner_pid=
+pass "Deadman runner reached AllInjected and was terminated by SIGKILL"
+
+ETHQUAKE_CHAOS_E2E_KUBECTL=$kubectl_bin \
+ETHQUAKE_CHAOS_E2E_KUBECONFIG=$kubeconfig \
+ETHQUAKE_CHAOS_E2E_CONTEXT=$context_name \
+    "$test_binary" -test.v -test.run '^TestChaosMeshDeadmanRecovery$'
 
 "$kind_bin" delete cluster --name "$cluster_name"
 owns_cluster=false
 test_complete=true
-rm -f -- "$kubeconfig"
+rm -f -- "$kubeconfig" "$test_binary" "$deadman_ready_file" "$deadman_runner_log"
 trap - EXIT HUP INT TERM
 
 if [ "$(global_context)" != "$initial_global_context" ]; then
@@ -199,4 +267,4 @@ if printf '%s\n' "$remaining_clusters" | \
     die "Disposable kind cluster remains after cleanup"
 fi
 
-pass "Chaos Mesh Apply, Status, TTL recovery, Revert, and cluster cleanup"
+pass "Chaos Mesh TTL recovery after runner SIGKILL and exact cluster cleanup"
