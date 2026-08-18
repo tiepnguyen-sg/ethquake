@@ -31,8 +31,11 @@ case "$*" in
     "compute project-info describe --project ethquake-test --format=json")
         key=projectQuota
         ;;
-    "compute machine-types list --project ethquake-test --filter zone:(northamerica-northeast2-a) --format=json")
-        key=machineTypes
+    "compute machine-types describe e2-standard-4 --project ethquake-test --zone northamerica-northeast2-a --format=json")
+        key=systemMachine
+        ;;
+    "compute machine-types describe n2-custom-2-16384 --project ethquake-test --zone northamerica-northeast2-a --format=json")
+        key=participantMachine
         ;;
     "container get-server-config --project ethquake-test --zone northamerica-northeast2-a --format=json")
         key=serverConfig
@@ -51,6 +54,22 @@ case "$*" in
     "compute firewall-rules list --project ethquake-test --format=json")
         key=empty
         ;;
+    "compute routers list --project ethquake-test --format=json")
+        key=empty
+        [ "$test_mode" != residual-router ] || key=occupied
+        ;;
+    "compute network-endpoint-groups list --project ethquake-test --format=json")
+        key=empty
+        [ "$test_mode" != residual-neg ] || key=occupied
+        ;;
+    "compute backend-services list --project ethquake-test --format=json" | \
+    "compute forwarding-rules list --project ethquake-test --format=json" | \
+    "compute target-http-proxies list --project ethquake-test --format=json" | \
+    "compute target-https-proxies list --project ethquake-test --format=json" | \
+    "compute url-maps list --project ethquake-test --format=json" | \
+    "compute health-checks list --project ethquake-test --format=json")
+        key=empty
+        ;;
     "compute regions list --project ethquake-test --format=json")
         key=regions
         ;;
@@ -63,14 +82,17 @@ if [ "$test_mode" = api-error ] && [ "$key" = region ]; then
     exit 95
 fi
 case "$key:$test_mode" in
-    region:low-spot)
-        jq -c '(.region.quotas[] | select(.metric == "PREEMPTIBLE_CPUS").limit) = 0 | .region' "$responses"
+    region:low-n2)
+        jq -c '(.region.quotas[] | select(.metric == "N2_CPUS").limit) = 7 | .region' "$responses"
+        ;;
+    region:low-ssd)
+        jq -c '(.region.quotas[] | select(.metric == "SSD_TOTAL_GB").limit) = 249 | .region' "$responses"
         ;;
     region:low-address)
-        jq -c '(.region.quotas[] | select(.metric == "IN_USE_ADDRESSES").limit) = 4 | .region' "$responses"
+        jq -c '(.region.quotas[] | select(.metric == "IN_USE_ADDRESSES").limit) = 0 | .region' "$responses"
         ;;
     projectQuota:low-global)
-        jq -c '.projectQuota.quotas[0].limit = 12 | .projectQuota' "$responses"
+        jq -c '.projectQuota.quotas[0].limit = 11 | .projectQuota' "$responses"
         ;;
     budget:bad-budget)
         jq -c '.budget.amount.specifiedAmount.units = "1" | .budget' "$responses"
@@ -78,7 +100,7 @@ case "$key:$test_mode" in
     serverConfig:bad-version)
         jq -c '.serverConfig.validMasterVersions = [] | .serverConfig' "$responses"
         ;;
-    occupied:occupied)
+    occupied:*)
         printf '[{"name":"unexpected-instance"}]\n'
         ;;
     *)

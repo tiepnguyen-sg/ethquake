@@ -65,6 +65,7 @@ esac
 for numeric_value in \
     "$PHASE3_PARTICIPANT_COUNT" \
     "$PHASE3_NODE_DISK_GB" \
+    "$PHASE3_WORKLOAD_SSD_RESERVE_GB" \
     "$PHASE3_MAX_SESSION_HOURS"; do
     case "$numeric_value" in
         ''|*[!0-9]*)
@@ -77,9 +78,24 @@ case "${PHASE3_GKE_CLUSTER_HOURLY_USD:-}" in
         die "GKE cluster hourly price lock must be a non-negative decimal"
         ;;
 esac
+for decimal_value in \
+    "$PHASE3_N2_CUSTOM_PREMIUM_MULTIPLIER" \
+    "$PHASE3_CLOUD_NAT_VM_HOURLY_USD" \
+    "$PHASE3_CLOUD_NAT_IP_HOURLY_USD" \
+    "$PHASE3_CLOUD_NAT_DATA_USD_PER_GIB"; do
+    case "$decimal_value" in
+        ''|*[!0-9.]*|*.*.*)
+            die "Phase 3 custom-machine and Cloud NAT price locks must be non-negative decimals"
+            ;;
+    esac
+done
 if [ "$PHASE3_PARTICIPANT_COUNT" -ne 4 ] || \
-    [ "$PHASE3_NODE_DISK_GB" -ne 50 ] || \
-    [ "$PHASE3_MAX_SESSION_HOURS" -ne 8 ]; then
+    [ "$PHASE3_NODE_DISK_TYPE" != pd-balanced ] || \
+    [ "$PHASE3_NODE_DISK_GB" -ne 40 ] || \
+    [ "$PHASE3_WORKLOAD_SSD_RESERVE_GB" -ne 50 ] || \
+    [ "$PHASE3_MAX_SESSION_HOURS" -ne 8 ] || \
+    [ "$PHASE3_CLOUD_NAT_IP_COUNT" -ne 1 ] || \
+    [ "$PHASE3_MAX_NAT_DATA_GIB" -ne 10 ]; then
     die "Phase 3 topology price inputs changed unexpectedly"
 fi
 
@@ -112,7 +128,7 @@ append_catalog_prices() {
              ((.pricingInfo[0].pricingExpression.tieredRates[0].unitPrice.nanos // 0) / 1000000000));
         .skus[] |
         select(
-            (.description | test("^Spot Preemptible N2 Instance (Core|Ram) running")) or
+            ((.description | test("^N2 Instance (Core|Ram) running")) and .category.usageType == "OnDemand") or
             ((.description | test("^E2 Instance (Core|Ram) running")) and .category.usageType == "OnDemand") or
             ((.description | test("^Balanced PD Capacity in ")) and
              .category.usageType == "OnDemand" and
@@ -124,7 +140,7 @@ append_catalog_prices() {
         [
             "SKU",
             .,
-            (if ($sku.description | startswith("Spot")) then "N2_SPOT"
+            (if ($sku.description | startswith("N2")) then "N2_OD"
              elif ($sku.description | startswith("E2")) then "E2_OD"
              else "PD_BALANCED" end),
             (if ($sku.category.resourceGroup == "CPU") then "CPU"
@@ -174,12 +190,14 @@ fi
 
 awk -F '\t' \
     -v participants="$PHASE3_PARTICIPANT_COUNT" \
-    -v disk_gb="$PHASE3_NODE_DISK_GB" '
+    -v disk_gb="$PHASE3_NODE_DISK_GB" \
+    -v workload_ssd_reserve_gb="$PHASE3_WORKLOAD_SSD_RESERVE_GB" \
+    -v custom_premium="$PHASE3_N2_CUSTOM_PREMIUM_MULTIPLIER" '
     $1 == "AVAILABLE" { available[$2] = 1 }
     $1 == "SKU" && $3 == "E2_OD" && $4 == "CPU" { e2_cpu[$2] = $5 }
     $1 == "SKU" && $3 == "E2_OD" && $4 == "RAM" { e2_ram[$2] = $5 }
-    $1 == "SKU" && $3 == "N2_SPOT" && $4 == "CPU" { n2_cpu[$2] = $5 }
-    $1 == "SKU" && $3 == "N2_SPOT" && $4 == "RAM" { n2_ram[$2] = $5 }
+    $1 == "SKU" && $3 == "N2_OD" && $4 == "CPU" { n2_cpu[$2] = $5 }
+    $1 == "SKU" && $3 == "N2_OD" && $4 == "RAM" { n2_ram[$2] = $5 }
     $1 == "SKU" && $3 == "PD_BALANCED" { pd[$2] = $5 }
     END {
         for (region in available) {
@@ -187,9 +205,9 @@ awk -F '\t' \
                 (region in n2_cpu) && (region in n2_ram) &&
                 (region in pd)) {
                 system_vm = 4 * e2_cpu[region] + 16 * e2_ram[region]
-                participant_vm = 4 * n2_cpu[region] + 16 * n2_ram[region]
+                participant_vm = (2 * n2_cpu[region] + 16 * n2_ram[region]) * custom_premium
                 compute = system_vm + participants * participant_vm
-                disk = ((participants + 1) * disk_gb * pd[region]) / 730
+                disk = (((participants + 1) * disk_gb + workload_ssd_reserve_gb) * pd[region]) / 730
                 printf "%.9f\t%s\t%.9f\t%.9f\n", compute + disk, region, compute, disk
             }
         }
@@ -201,7 +219,7 @@ if [ ! -s "$price_table" ]; then
 fi
 cheapest=$(awk 'NR == 1 { print $2 }' "$price_table")
 if [ "$cheapest" != "$PHASE3_GCP_REGION" ]; then
-    die "Locked region $PHASE3_GCP_REGION is not the cheapest eligible region; current cheapest is $cheapest"
+    info "Cheapest comparable region is $cheapest; fixed-location policy retains $PHASE3_GCP_REGION"
 fi
 selected=$(awk -v region="$PHASE3_GCP_REGION" '$2 == region { print; exit }' "$price_table")
 if [ -z "$selected" ]; then
@@ -210,15 +228,25 @@ fi
 hourly_total=$(printf '%s\n' "$selected" | awk '{ print $1 }')
 hourly_compute=$(printf '%s\n' "$selected" | awk '{ print $3 }')
 hourly_disk=$(printf '%s\n' "$selected" | awk '{ print $4 }')
+hourly_nat=$(awk \
+    -v vms="$((PHASE3_PARTICIPANT_COUNT + 1))" \
+    -v vm_price="$PHASE3_CLOUD_NAT_VM_HOURLY_USD" \
+    -v ips="$PHASE3_CLOUD_NAT_IP_COUNT" \
+    -v ip_price="$PHASE3_CLOUD_NAT_IP_HOURLY_USD" \
+    'BEGIN { printf "%.9f", (vms * vm_price) + (ips * ip_price) }')
 hourly_with_gke=$(awk -v hourly="$hourly_total" -v gke="$PHASE3_GKE_CLUSTER_HOURLY_USD" \
-    'BEGIN { printf "%.9f", hourly + gke }')
+    -v nat="$hourly_nat" 'BEGIN { printf "%.9f", hourly + gke + nat }')
+maximum_nat_data=$(awk -v gib="$PHASE3_MAX_NAT_DATA_GIB" \
+    -v price="$PHASE3_CLOUD_NAT_DATA_USD_PER_GIB" \
+    'BEGIN { printf "%.6f", gib * price }')
 estimated_session=$(awk -v hourly="$hourly_with_gke" -v hours="$PHASE3_MAX_SESSION_HOURS" \
-    'BEGIN { printf "%.6f", hourly * hours }')
+    -v nat_data="$maximum_nat_data" 'BEGIN { printf "%.6f", (hourly * hours) + nat_data }')
 if ! awk -v estimate="$estimated_session" -v ceiling="$PHASE3_MAX_ESTIMATED_SESSION_USD" \
     'BEGIN { exit !(estimate <= ceiling) }'; then
     die "Estimated USD $estimated_session session exceeds the USD $PHASE3_MAX_ESTIMATED_SESSION_USD safety ceiling"
 fi
 
-pass "Cheapest eligible GCP region: $PHASE3_GCP_REGION"
-info "Locked topology hourly estimate: USD $hourly_with_gke (compute $hourly_compute; disk $hourly_disk; GKE $PHASE3_GKE_CLUSTER_HOURLY_USD)"
-pass "Eight-hour compute, disk, and GKE estimate: USD $estimated_session"
+pass "Locked GCP region has complete live pricing: $PHASE3_GCP_REGION"
+info "Locked topology hourly estimate: USD $hourly_with_gke (compute $hourly_compute; disk $hourly_disk; GKE $PHASE3_GKE_CLUSTER_HOURLY_USD; NAT fixed $hourly_nat)"
+info "Cloud NAT data allowance: $PHASE3_MAX_NAT_DATA_GIB GiB at USD $PHASE3_CLOUD_NAT_DATA_USD_PER_GIB/GiB = USD $maximum_nat_data"
+pass "Eight-hour compute, disk, GKE, and Cloud NAT estimate: USD $estimated_session"

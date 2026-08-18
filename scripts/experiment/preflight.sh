@@ -98,6 +98,29 @@ if [ "$network_participant_count" != "$PHASE3_PARTICIPANT_COUNT" ]; then
     die "network parameters must define exactly $PHASE3_PARTICIPANT_COUNT participants"
 fi
 pass "Phase 3 participants: $PHASE3_PARTICIPANT_COUNT"
+supernode_count=$(awk '
+    $0 == "participants:" { in_participants = 1; next }
+    $0 == "network_params:" { in_participants = 0 }
+    in_participants && /^[[:space:]]+supernode:[[:space:]]+true$/ { count++ }
+    END { print count + 0 }
+' "$network_params")
+if [ "$supernode_count" -ne 1 ]; then
+    die "network parameters must define exactly one Fulu supernode"
+fi
+pass "Phase 3 Fulu supernodes: 1"
+participant_cpu_requests=$(awk '
+    $0 == "participants:" { in_participants = 1; next }
+    $0 == "network_params:" { in_participants = 0 }
+    in_participants && /_min_cpu:/ { total += $2 }
+    in_participants && /^  - el_type:/ && seen { print total; total = 0 }
+    in_participants && /^  - el_type:/ { seen = 1 }
+    END { if (seen) print total }
+' "$network_params")
+if [ "$(printf '%s\n' "$participant_cpu_requests" | awk -v expected="$PHASE3_PARTICIPANT_REQUEST_MCPU" \
+    'NF { count++; if ($1 != expected) failed = 1 } END { print (count == 4 && !failed) ? "pass" : "fail" }')" != pass ]; then
+    die "each participant must request exactly $PHASE3_PARTICIPANT_REQUEST_MCPU millicores across EL, CL, and VC"
+fi
+pass "Phase 3 participant CPU request: ${PHASE3_PARTICIPANT_REQUEST_MCPU}m"
 jq -e '.schema_version == "ethquake.dependencies/v1alpha1"' "$dependency_lock" >/dev/null
 pass "Dependency lock schema"
 pass "Phase 3 static preflight"
@@ -109,6 +132,10 @@ fi
 for command_name in curl docker git kubectl lsof; do
     require_command "$command_name"
 done
+if ! docker info >/dev/null 2>&1; then
+    die "Docker daemon is unavailable"
+fi
+pass "Docker daemon"
 if [ ! -x "$helm_bin" ]; then
     die "repository-local Helm binary is missing: run make phase3-prepare"
 fi
@@ -123,7 +150,7 @@ pass "Helm version: $helm_version"
 if docker container inspect ethquake-kurtosis-access >/dev/null 2>&1; then
     die "Stop the local Ethquake Kurtosis gateway before a Phase 3 session"
 fi
-for local_port in 9710 15052 15053 15054 15055 18546 19090; do
+for local_port in 9710 13000 15052 15053 15054 15055 18546 19090; do
     if lsof -nP -iTCP:"$local_port" -sTCP:LISTEN >/dev/null 2>&1; then
         die "Required loopback port is already in use: $local_port"
     fi

@@ -8,7 +8,7 @@ GO ?= go
 	go-preflight fmt fmt-check test test-race test-e2e vet build verify \
 	scenario-validate phase3-prepare phase3-preflight phase3-dry-run \
 	phase3-chaos-e2e phase3-runner-test phase3-gcp-preflight-test \
-	phase3-gcp-preflight phase3-run
+	phase3-gcp-preflight phase3-qualification-dry-run phase3-qualify phase3-run
 preflight:
 	@PATH="$(ETHQUAKE_LOCAL_BIN):$(PATH)" ./scripts/devnet/preflight.sh
 
@@ -102,6 +102,12 @@ phase3-gcp-preflight-test:
 
 phase3-gcp-preflight:
 	@./scripts/experiment/gcp-account-preflight.sh
+
+phase3-qualification-dry-run: build
+	@ETHQUAKE_SESSION_ID="$(ETHQUAKE_SESSION_ID)" ./scripts/experiment/phase3.sh qualification-dry-run
+
+phase3-qualify:
+	@./scripts/experiment/phase3.sh qualify
 
 phase3-run:
 	@./scripts/experiment/phase3.sh run

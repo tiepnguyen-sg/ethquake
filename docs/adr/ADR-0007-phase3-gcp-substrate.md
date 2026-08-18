@@ -34,9 +34,10 @@ Return Phase 3 to GCP and supersede ADR-0006.
 
 Use a zonal GKE Standard cluster. Before the first billable resource is created,
 rerun the live price, availability, version, billing, budget, and quota
-preflight. Select the cheapest eligible region for the complete locked topology.
-The current candidate is `northamerica-northeast2`, with
-`northamerica-northeast2-a` as the single candidate zone. Once a session creates
+preflight. Report the cheapest comparable region, but keep the owner-selected
+fixed location in Toronto when its capacity and cost ceiling pass. The locked
+region is `northamerica-northeast2`, with `northamerica-northeast2-a` as its
+zone. Once a session creates
 its first resource, every regional or zonal resource for all six runs must stay
 in that region and zone; a price change cannot move part of an evidence session.
 
@@ -46,7 +47,7 @@ Canonical evidence remains off-cluster on the runner host; no Cloud Storage
 bucket is required.
 
 Do not use the multi-region auto-mode default VPC. The runner creates an owned
-custom-mode VPC with one subnet in `northamerica-northeast2`, binds the cluster
+custom-mode VPC with one subnet in the locked region, binds the cluster
 to that subnet, and deletes both after cluster teardown. The automatically
 created default VPC and its firewall rules were removed while the project had
 no runtime resources.
@@ -57,20 +58,77 @@ exist with its exact VND 5,500,000 amount and alert thresholds before
 provisioning. This alert ceiling does not replace the lower USD 100 total
 project cost target.
 
-Do not reduce participant resources merely to fit the current quota. The real
-runner must remain fail-closed until the locked topology fits granted quota, its
-expected session cost is presented, ownership labels and unconditional teardown
-are verified, and the owner authorizes the evidence session.
+Do not reduce participant resources merely to fit quota. A smaller topology is
+eligible only as a separately reviewed resource-policy revision with a
+non-evidence qualification run that detects scheduling failure, loss of
+head/finality progress, OOMs or restarts, node pressure, excessive CPU
+throttling, and loss of outbound connectivity.
+
+## 2026-08-18 resource-policy amendment
+
+The owner authorized qualification of a 12-vCPU topology after the original
+quota requests were denied. Use one on-demand `e2-standard-4` system node and
+four on-demand `n2-custom-2-16384` participant nodes. Each participant retains
+16 GiB memory and co-locates its EL, CL, and VC. Their CPU requests are revised
+from 1000m/1000m/250m to 700m/700m/100m; limits remain unchanged. The 1500m
+aggregate request leaves allocatable CPU for GKE system DaemonSets, while the
+unchanged limits deliberately retain CPU overcommit for qualification.
+
+The owner explicitly retained Toronto after the live on-demand price comparison
+reported a cheaper region. Price preflight therefore requires complete live
+Toronto pricing and the locked cost ceiling, while reporting but not selecting
+other regions. Toronto exposes both locked machine types and GKE
+`1.36.3-gke.1537000`; regional quotas cover the complete topology.
+
+Each node uses a 40 GiB `pd-balanced` boot disk. Account preflight checks the
+matching regional `SSD_TOTAL_GB` quota for all five boot disks plus a 50 GiB
+workload reserve. This prevents node disks from exhausting the quota needed by
+Kurtosis dynamic PVCs.
+
+Fulu is active from genesis in the pinned ethereum-package revision. The first
+participant is the single explicit PeerDAS supernode; static preflight rejects
+zero or multiple supernodes in this four-participant topology.
+
+All nodes are private and have no external IP. The owned custom subnet enables
+Private Google Access. One owned regional Cloud Router and Public Cloud NAT use
+automatic external-IP allocation and full NAT logging. The Kubernetes control
+plane retains its public authenticated endpoint so the repository-local runner
+can reach it. The runner discovers and strictly validates its current public
+IPv4 before provisioning, then supplies only that `/32` to GKE master authorized
+networks. `0.0.0.0/0` is prohibited and basic authentication remains disabled.
+The unused GKE HTTP load-balancing addon is disabled; runner access to Kurtosis
+services uses repository-owned `kubectl port-forward` listeners on loopback
+only, so no public forwarding rule, proxy, URL map, or backend is required.
+
+The qualification runner has a 90-minute teardown watchdog, an eight-minute
+observation interval, and a five-minute live UI inspection window. It must
+verify all of the following before the topology can be considered for a fresh
+evidence session:
+
+- every participant has co-located EL, CL, and VC pods in Running/Ready state;
+- all four beacon heads and finalized epochs advance during observation;
+- no workload container restarts, OOMKills, crash loops, or failed pods;
+- every node remains Ready without memory, disk, or PID pressure;
+- CFS throttled periods divided by total periods remains at or below 0.25 for
+  every measured participant container;
+- all five nodes lack external IPs and a private-node pod completes a public
+  DNS/HTTP request through Cloud NAT.
+
+Qualification artifacts are explicitly marked `evidence_eligible: false` and
+cannot be reused as a control run. Failure blocks evidence execution; thresholds
+and requests must not be changed post hoc within the failed session. A passing
+qualification permits, but does not itself authorize, a new six-run evidence
+session using the same locked resource policy.
 
 ## Consequences
 
 The AWS preflight and fail-safe runner are retired from the allowed workflow and
 remain available only in Git history.
 
-Quota approval is the only account-level capacity blocker. Provider-independent
-experiment code remains reusable. The rejected quota preferences are retained
-as auditable, non-billable project configuration and disappear with project
-deletion.
+The revised topology fits the granted on-demand CPU and address quotas, subject
+to the live fail-closed preflight. Provider-independent experiment code remains
+reusable. The rejected quota preferences are retained as auditable, non-billable
+project configuration and disappear with project deletion.
 
 Relevant pricing sources are the [Cloud Billing Catalog API](https://cloud.google.com/billing/v1/how-tos/catalog-api),
 [Spot VM pricing](https://cloud.google.com/spot-vms/pricing), and

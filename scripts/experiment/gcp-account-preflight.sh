@@ -79,9 +79,13 @@ if [ "${PHASE3_GCP_REGION:-}" != northamerica-northeast2 ] || \
     [ "${PHASE3_GCP_ZONE:-}" != northamerica-northeast2-a ] || \
     [ "${PHASE3_KUBERNETES_CONTEXT:-}" != gke-ethquake-phase3 ] || \
     [ "${PHASE3_SYSTEM_MACHINE_TYPE:-}" != e2-standard-4 ] || \
-    [ "${PHASE3_PARTICIPANT_MACHINE_TYPE:-}" != n2-standard-4 ] || \
-    [ "${PHASE3_REQUIRED_PREEMPTIBLE_VCPUS:-}" != 16 ] || \
-    [ "${PHASE3_REQUIRED_TOTAL_VCPUS:-}" != 20 ] || \
+    [ "${PHASE3_PARTICIPANT_MACHINE_TYPE:-}" != n2-custom-2-16384 ] || \
+    [ "${PHASE3_REQUIRED_PREEMPTIBLE_VCPUS:-}" != 0 ] || \
+    [ "${PHASE3_REQUIRED_ON_DEMAND_VCPUS:-}" != 12 ] || \
+    [ "${PHASE3_REQUIRED_TOTAL_VCPUS:-}" != 12 ] || \
+    [ "${PHASE3_PRIVATE_NODES:-}" != true ] || \
+    [ "${PHASE3_CLOUD_NAT:-}" != true ] || \
+    [ "${PHASE3_CLOUD_NAT_IP_COUNT:-}" != 1 ] || \
     [ "${PHASE3_GCP_BUDGET_VND:-}" != 5500000 ] || \
     [ "${PHASE3_GCP_BUDGET_DISPLAY_NAME:-}" != ethquake-phase3-gross-vnd-5500000 ] || \
     [ "${PHASE3_GKE_CLUSTER_HOURLY_USD:-}" != 0.10 ]; then
@@ -147,17 +151,23 @@ region=$(gcloud_json "GCP region quota lookup" compute regions describe "$PHASE3
 if ! printf '%s\n' "$region" | jq -e \
     --arg region "$PHASE3_GCP_REGION" \
     --arg zone "$PHASE3_GCP_ZONE" \
-    --argjson spot "$PHASE3_REQUIRED_PREEMPTIBLE_VCPUS" \
-    --argjson disk_gb "$PHASE3_NODE_DISK_GB" '
-    def quota($metric): [.quotas[] | select(.metric == $metric) | .limit] | if length == 1 then .[0] else -1 end;
+    --argjson total "$PHASE3_REQUIRED_ON_DEMAND_VCPUS" \
+    --argjson nat_ips "$PHASE3_CLOUD_NAT_IP_COUNT" \
+    --argjson disk_gb "$PHASE3_NODE_DISK_GB" \
+    --argjson workload_ssd_reserve_gb "$PHASE3_WORKLOAD_SSD_RESERVE_GB" '
+    def available($metric):
+      [.quotas[] | select(.metric == $metric) | (.limit - (.usage // 0))] |
+      if length == 1 then .[0] else -1 end;
     .name == $region and .status == "UP" and
     any(.zones[]?; endswith("/" + $zone)) and
-    quota("CPUS") >= 4 and
-    quota("PREEMPTIBLE_CPUS") >= $spot and
-    quota("DISKS_TOTAL_GB") >= (5 * $disk_gb) and
-    quota("IN_USE_ADDRESSES") >= 5
+    available("CPUS") >= $total and
+    available("E2_CPUS") >= 4 and
+    available("N2_CPUS") >= 8 and
+    available("INSTANCES") >= 5 and
+    available("SSD_TOTAL_GB") >= ((5 * $disk_gb) + $workload_ssd_reserve_gb) and
+    available("IN_USE_ADDRESSES") >= $nat_ips
 ' >/dev/null; then
-    die "Region quota cannot support the locked five-node GKE topology in $PHASE3_GCP_REGION"
+    die "Region quota cannot support the locked private five-node GKE topology in $PHASE3_GCP_REGION"
 fi
 pass "Regional quota supports the locked topology"
 
@@ -172,14 +182,19 @@ if ! printf '%s\n' "$project_quota" | jq -e \
 fi
 pass "Global CPU quota supports $PHASE3_REQUIRED_TOTAL_VCPUS vCPUs"
 
-machine_types=$(gcloud_json "GCP machine-type lookup" compute machine-types list \
-    --project "$project" --filter "zone:($PHASE3_GCP_ZONE)")
-if ! printf '%s\n' "$machine_types" | jq -e \
+system_machine=$(gcloud_json "GCP system machine-type lookup" compute machine-types describe \
+    "$PHASE3_SYSTEM_MACHINE_TYPE" --project "$project" --zone "$PHASE3_GCP_ZONE")
+participant_machine=$(gcloud_json "GCP participant machine-type lookup" compute machine-types describe \
+    "$PHASE3_PARTICIPANT_MACHINE_TYPE" --project "$project" --zone "$PHASE3_GCP_ZONE")
+if ! printf '%s\n%s\n' "$system_machine" "$participant_machine" | jq -s -e \
     --arg system "$PHASE3_SYSTEM_MACHINE_TYPE" \
     --arg participant "$PHASE3_PARTICIPANT_MACHINE_TYPE" \
     --arg zone "$PHASE3_GCP_ZONE" '
-    def available($name): any(.[]?; .name == $name and (.zone | endswith("/" + $zone)) and .guestCpus == 4 and .memoryMb == 16384);
-    available($system) and available($participant)
+    length == 2 and
+    .[0].name == $system and ((.[0].zone == $zone) or (.[0].zone | endswith("/" + $zone))) and
+    .[0].guestCpus == 4 and .[0].memoryMb == 16384 and
+    .[1].name == $participant and ((.[1].zone == $zone) or (.[1].zone | endswith("/" + $zone))) and
+    .[1].guestCpus == 2 and .[1].memoryMb == 16384
 ' >/dev/null; then
     die "Locked machine types are unavailable in $PHASE3_GCP_ZONE"
 fi
@@ -202,18 +217,27 @@ addresses=$(gcloud_json "Compute address inventory lookup" compute addresses lis
 networks=$(gcloud_json "VPC network inventory lookup" compute networks list --project "$project")
 subnets=$(gcloud_json "VPC subnet inventory lookup" compute networks subnets list --project "$project")
 firewalls=$(gcloud_json "VPC firewall inventory lookup" compute firewall-rules list --project "$project")
+routers=$(gcloud_json "Cloud Router inventory lookup" compute routers list --project "$project")
+negs=$(gcloud_json "Network endpoint group inventory lookup" compute network-endpoint-groups list --project "$project")
+backend_services=$(gcloud_json "Backend service inventory lookup" compute backend-services list --project "$project")
+forwarding_rules=$(gcloud_json "Forwarding rule inventory lookup" compute forwarding-rules list --project "$project")
+http_proxies=$(gcloud_json "HTTP proxy inventory lookup" compute target-http-proxies list --project "$project")
+https_proxies=$(gcloud_json "HTTPS proxy inventory lookup" compute target-https-proxies list --project "$project")
+url_maps=$(gcloud_json "URL map inventory lookup" compute url-maps list --project "$project")
+health_checks=$(gcloud_json "Health check inventory lookup" compute health-checks list --project "$project")
 for inventory in "$clusters" "$instances" "$disks" "$addresses"; do
     if ! printf '%s\n' "$inventory" | jq -e 'type == "array" and length == 0' >/dev/null; then
         die "Dedicated Phase 3 project must have empty GKE, instance, disk, and address inventory"
     fi
 done
 pass "Dedicated project has no runtime cloud resources"
-for inventory in "$networks" "$subnets" "$firewalls"; do
+for inventory in "$networks" "$subnets" "$firewalls" "$routers" "$negs" "$backend_services" \
+    "$forwarding_rules" "$http_proxies" "$https_proxies" "$url_maps" "$health_checks"; do
     if ! printf '%s\n' "$inventory" | jq -e 'type == "array" and length == 0' >/dev/null; then
-        die "Dedicated Phase 3 project must have empty VPC network, subnet, and firewall inventory"
+        die "Dedicated Phase 3 project must have empty VPC and load-balancer inventory"
     fi
 done
-pass "Dedicated project has no residual VPC resources"
+pass "Dedicated project has no residual VPC or load-balancer resources"
 
 GCP_PROJECT="$project" "$script_dir/gcp-price-preflight.sh"
 pass "GCP read-only account preflight"

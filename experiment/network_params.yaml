@@ -2,43 +2,44 @@ participants:
   - el_type: geth
     el_image: ethereum/client-go:v1.17.5@sha256:523d3ba26623a619e912019068dc2784f02934070ac46bdae4d5b9df0d917814
     el_storage_type: full
-    el_min_cpu: 1000
+    el_min_cpu: 700
     el_max_cpu: 2000
     el_min_mem: 2048
     el_max_mem: 4096
     cl_type: lighthouse
     cl_image: sigp/lighthouse:v8.2.1@sha256:9538f53d8e11766e3cb5de1889b292074f8e518e0dabe6df13d9054d504d1d62
-    cl_min_cpu: 1000
+    cl_min_cpu: 700
     cl_max_cpu: 2000
     cl_min_mem: 2048
     cl_max_mem: 4096
     use_separate_vc: true
     vc_type: lighthouse
     vc_image: sigp/lighthouse:v8.2.1@sha256:9538f53d8e11766e3cb5de1889b292074f8e518e0dabe6df13d9054d504d1d62
-    vc_min_cpu: 250
+    vc_min_cpu: 100
     vc_max_cpu: 500
     vc_min_mem: 512
     vc_max_mem: 1024
     validator_count: 32
+    supernode: true
     node_selectors:
       dev.ethquake.participant: ethquake-p1
   - el_type: reth
     el_image: ghcr.io/paradigmxyz/reth:v2.5.0@sha256:c2f421a129b50a8d46a44e1fa6e8b843f491f3c4323f425dfb62496c4c832bc2
     el_storage_type: full
-    el_min_cpu: 1000
+    el_min_cpu: 700
     el_max_cpu: 2000
     el_min_mem: 2048
     el_max_mem: 4096
     cl_type: teku
     cl_image: consensys/teku:26.8.0@sha256:3a4f5761ae1c441ea26ac1f32b774e15e06e49a9861185a07e29ca7a6c3e434e
-    cl_min_cpu: 1000
+    cl_min_cpu: 700
     cl_max_cpu: 2000
     cl_min_mem: 2048
     cl_max_mem: 4096
     use_separate_vc: true
     vc_type: teku
     vc_image: consensys/teku:26.8.0@sha256:3a4f5761ae1c441ea26ac1f32b774e15e06e49a9861185a07e29ca7a6c3e434e
-    vc_min_cpu: 250
+    vc_min_cpu: 100
     vc_max_cpu: 500
     vc_min_mem: 512
     vc_max_mem: 1024
@@ -48,20 +49,20 @@ participants:
   - el_type: geth
     el_image: ethereum/client-go:v1.17.5@sha256:523d3ba26623a619e912019068dc2784f02934070ac46bdae4d5b9df0d917814
     el_storage_type: full
-    el_min_cpu: 1000
+    el_min_cpu: 700
     el_max_cpu: 2000
     el_min_mem: 2048
     el_max_mem: 4096
     cl_type: lighthouse
     cl_image: sigp/lighthouse:v8.2.1@sha256:9538f53d8e11766e3cb5de1889b292074f8e518e0dabe6df13d9054d504d1d62
-    cl_min_cpu: 1000
+    cl_min_cpu: 700
     cl_max_cpu: 2000
     cl_min_mem: 2048
     cl_max_mem: 4096
     use_separate_vc: true
     vc_type: lighthouse
     vc_image: sigp/lighthouse:v8.2.1@sha256:9538f53d8e11766e3cb5de1889b292074f8e518e0dabe6df13d9054d504d1d62
-    vc_min_cpu: 250
+    vc_min_cpu: 100
     vc_max_cpu: 500
     vc_min_mem: 512
     vc_max_mem: 1024
@@ -71,20 +72,20 @@ participants:
   - el_type: reth
     el_image: ghcr.io/paradigmxyz/reth:v2.5.0@sha256:c2f421a129b50a8d46a44e1fa6e8b843f491f3c4323f425dfb62496c4c832bc2
     el_storage_type: full
-    el_min_cpu: 1000
+    el_min_cpu: 700
     el_max_cpu: 2000
     el_min_mem: 2048
     el_max_mem: 4096
     cl_type: teku
     cl_image: consensys/teku:26.8.0@sha256:3a4f5761ae1c441ea26ac1f32b774e15e06e49a9861185a07e29ca7a6c3e434e
-    cl_min_cpu: 1000
+    cl_min_cpu: 700
     cl_max_cpu: 2000
     cl_min_mem: 2048
     cl_max_mem: 4096
     use_separate_vc: true
     vc_type: teku
     vc_image: consensys/teku:26.8.0@sha256:3a4f5761ae1c441ea26ac1f32b774e15e06e49a9861185a07e29ca7a6c3e434e
-    vc_min_cpu: 250
+    vc_min_cpu: 100
     vc_max_cpu: 500
     vc_min_mem: 512
     vc_max_mem: 1024

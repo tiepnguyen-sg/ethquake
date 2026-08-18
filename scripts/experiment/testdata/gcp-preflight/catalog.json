@@ -13,14 +13,14 @@
       "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 3000000, "units": "0"}}], "usageUnit": "GiBy.h"}}]
     },
     {
-      "category": {"resourceGroup": "CPU", "usageType": "Preemptible"},
-      "description": "Spot Preemptible N2 Instance Core running in Toronto",
+      "category": {"resourceGroup": "CPU", "usageType": "OnDemand"},
+      "description": "N2 Instance Core running in Toronto",
       "geoTaxonomy": {"regions": ["northamerica-northeast2"]},
       "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 3000000, "units": "0"}}], "usageUnit": "h"}}]
     },
     {
-      "category": {"resourceGroup": "RAM", "usageType": "Preemptible"},
-      "description": "Spot Preemptible N2 Instance Ram running in Toronto",
+      "category": {"resourceGroup": "RAM", "usageType": "OnDemand"},
+      "description": "N2 Instance Ram running in Toronto",
       "geoTaxonomy": {"regions": ["northamerica-northeast2"]},
       "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 400000, "units": "0"}}], "usageUnit": "GiBy.h"}}]
     },
@@ -43,14 +43,14 @@
       "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 3000000, "units": "0"}}], "usageUnit": "GiBy.h"}}]
     },
     {
-      "category": {"resourceGroup": "CPU", "usageType": "Preemptible"},
-      "description": "Spot Preemptible N2 Instance Core running in Americas",
+      "category": {"resourceGroup": "CPU", "usageType": "OnDemand"},
+      "description": "N2 Instance Core running in Americas",
       "geoTaxonomy": {"regions": ["us-central1"]},
       "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 20000000, "units": "0"}}], "usageUnit": "h"}}]
     },
     {
-      "category": {"resourceGroup": "RAM", "usageType": "Preemptible"},
-      "description": "Spot Preemptible N2 Instance Ram running in Americas",
+      "category": {"resourceGroup": "RAM", "usageType": "OnDemand"},
+      "description": "N2 Instance Ram running in Americas",
       "geoTaxonomy": {"regions": ["us-central1"]},
       "pricingInfo": [{"pricingExpression": {"tieredRates": [{"unitPrice": {"currencyCode": "USD", "nanos": 2000000, "units": "0"}}], "usageUnit": "GiBy.h"}}]
     },

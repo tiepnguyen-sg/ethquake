@@ -44,8 +44,12 @@
     "quotas": [
       {"limit": 32, "metric": "CPUS", "usage": 0},
       {"limit": 2048, "metric": "DISKS_TOTAL_GB", "usage": 0},
-      {"limit": 5, "metric": "IN_USE_ADDRESSES", "usage": 0},
-      {"limit": 16, "metric": "PREEMPTIBLE_CPUS", "usage": 0}
+      {"limit": 250, "metric": "SSD_TOTAL_GB", "usage": 0},
+      {"limit": 4, "metric": "IN_USE_ADDRESSES", "usage": 0},
+      {"limit": 0, "metric": "PREEMPTIBLE_CPUS", "usage": 0},
+      {"limit": 8, "metric": "E2_CPUS", "usage": 0},
+      {"limit": 32, "metric": "N2_CPUS", "usage": 0},
+      {"limit": 8, "metric": "INSTANCES", "usage": 0}
     ],
     "status": "UP",
     "zones": [
@@ -53,22 +57,20 @@
     ]
   },
   "projectQuota": {
-    "quotas": [{"limit": 20, "metric": "CPUS_ALL_REGIONS", "usage": 0}]
+    "quotas": [{"limit": 12, "metric": "CPUS_ALL_REGIONS", "usage": 0}]
   },
-  "machineTypes": [
-    {
+  "systemMachine": {
       "guestCpus": 4,
       "memoryMb": 16384,
       "name": "e2-standard-4",
       "zone": "https://www.googleapis.com/compute/v1/projects/ethquake-test/zones/northamerica-northeast2-a"
-    },
-    {
-      "guestCpus": 4,
+  },
+  "participantMachine": {
+      "guestCpus": 2,
       "memoryMb": 16384,
-      "name": "n2-standard-4",
+      "name": "n2-custom-2-16384",
       "zone": "https://www.googleapis.com/compute/v1/projects/ethquake-test/zones/northamerica-northeast2-a"
-    }
-  ],
+  },
   "serverConfig": {
     "validMasterVersions": ["1.36.3-gke.1537000"],
     "validNodeVersions": ["1.36.3-gke.1537000"]
