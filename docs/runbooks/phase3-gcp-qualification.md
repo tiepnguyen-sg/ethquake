@@ -76,6 +76,27 @@ the live window, open the runner-forwarded Grafana at
 `http://127.0.0.1:13000` for a visual protocol-health view. Treat it as a
 supporting display, not the pass/fail source.
 
+**Known issue (accepted, not fixed):** Grafana's dashboard UI currently fails
+with `Failed to load home dashboard` / HTTP 500 on
+`/api/dashboards/home`. The `ethereum-package`-provisioned dashboard JSON files
+under `/dashboards` are mounted mode `600` owned by `root`, but the Grafana
+image's server process runs as its default non-root user and cannot open
+them. This is an upstream `ethereum-package`/Kurtosis file-mounting issue, not
+an ethquake bug, and does not affect any qualification or evidence gate — all
+of them read the Beacon API and cAdvisor directly. Use the Beacon API
+endpoints and `kubectl` directly (as this runbook already does throughout) for
+live visual inspection instead of the Grafana dashboard list.
+
+A local workaround (patching the Grafana pod's `securityContext` to run as
+root) was considered and rejected: Kurtosis's Kubernetes backend represents
+this service as a bare Pod, not a Deployment, so `securityContext` cannot be
+patched on the running Pod; the only way to change it is to delete and
+recreate the Pod outside Kurtosis's own bookkeeping, which risks breaking
+`kurtosis enclave rm` and the teardown guarantee this project treats as
+non-negotiable (§10). The owner decided the dashboard UI is not worth that
+risk. Fixing this upstream in `ethereum-package` remains the intended
+long-term path, deferred until after the current build work.
+
 The automated gate queries all four standard Beacon APIs before and after the
 eight-minute observation interval. For every client, both the head slot and the
 finalized epoch must increase. Compare `consensus-start.tsv`,
