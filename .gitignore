@@ -142,6 +142,7 @@ terraform.tfvars
 # ============================================================
 
 AGENTS.md
+CLAUDE.md
 PROJECT_BRIEF.md
 PROJECT_STATE.md
 ENGINEERING_STANDARDS.md
