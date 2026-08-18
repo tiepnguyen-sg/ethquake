@@ -96,7 +96,7 @@ if [ "${PHASE3_PARTICIPANT_COUNT:-}" != 4 ] || \
     [ "${PHASE3_PRIVATE_NODES:-}" != true ] || \
     [ "${PHASE3_CLOUD_NAT:-}" != true ] || \
     [ "${PHASE3_HTTP_LOAD_BALANCING:-}" != false ] || \
-    [ "${PHASE3_PARTICIPANT_REQUEST_MCPU:-}" != 1500 ] || \
+    [ "${PHASE3_PARTICIPANT_REQUEST_MCPU:-}" != 1400 ] || \
     [ "${PHASE3_NODE_DISK_TYPE:-}" != pd-balanced ] || \
     [ "${PHASE3_NODE_DISK_GB:-}" != 40 ] || \
     [ "${PHASE3_WORKLOAD_SSD_RESERVE_GB:-}" != 50 ] || \
@@ -1428,7 +1428,7 @@ run_qualification() {
             total_vcpus: 12,
             private_nodes: true,
             public_cloud_nat: true,
-            participant_request_mcpu: 1500
+            participant_request_mcpu: 1400
           },
           gates: {
             scheduling: "PASS",

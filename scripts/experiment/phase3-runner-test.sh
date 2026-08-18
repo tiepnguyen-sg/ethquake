@@ -53,7 +53,7 @@ for expected in \
     '[PLAN] required_on_demand_vcpus=12' \
     '[PLAN] required_total_vcpus=12' \
     '[PLAN] participant_machine_type=n2-custom-2-16384' \
-    '[PLAN] participant_request_mcpu=1500' \
+    '[PLAN] participant_request_mcpu=1400' \
     '[PLAN] node_disk=pd-balanced:40GiB' \
     '[PLAN] workload_ssd_reserve_gb=50' \
     '[PLAN] private_nodes=true' \
