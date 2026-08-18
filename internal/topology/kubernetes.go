@@ -211,7 +211,7 @@ func buildDiscovery(value scenario.Scenario, userPods, chaosPods []podResource, 
 			}
 			containers := append(append([]containerSpec(nil), pod.Spec.InitContainers...), pod.Spec.Containers...)
 			for _, container := range containers {
-				if !digestPinned(container.Image) {
+				if !digestPinned(container.Image) && !isKurtosisFilesArtifactExpander(container.Name, container.Image) {
 					return Discovery{}, fmt.Errorf("Pod %q container %q is not digest-pinned: %s", pod.Metadata.Name, container.Name, container.Image)
 				}
 				key := namespacedPods.namespace + "/" + workloadID + "/" + container.Name
@@ -300,6 +300,22 @@ func digestPinned(image string) bool {
 	}
 	_, err := hex.DecodeString(parts[1])
 	return err == nil && strings.ToLower(parts[1]) == parts[1]
+}
+
+// Kurtosis injects this init container into every pod that consumes a files
+// artifact; its version is fixed by the pinned Kurtosis CLI/engine
+// (toolchain/versions.env), not by ethquake's own dependency lock, so it is
+// exempt from the digest-pin requirement that applies to every other
+// container. The match is exact and narrow: only this container name paired
+// with this image repository is exempt, nothing else.
+const (
+	kurtosisFilesArtifactExpanderContainerName   = "files-artifact-expander"
+	kurtosisFilesArtifactExpanderImageRepository = "kurtosistech/files-artifacts-expander:"
+)
+
+func isKurtosisFilesArtifactExpander(name, image string) bool {
+	return name == kurtosisFilesArtifactExpanderContainerName &&
+		strings.HasPrefix(image, kurtosisFilesArtifactExpanderImageRepository)
 }
 
 func ResourcePolicyDigest(policy string) string {

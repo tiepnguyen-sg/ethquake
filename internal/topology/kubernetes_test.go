@@ -45,6 +45,37 @@ func TestBuildDiscoveryRejectsMutableInitContainerImage(t *testing.T) {
 	}
 }
 
+func TestBuildDiscoveryAllowsOnlyTheExactKurtosisFilesArtifactExpander(t *testing.T) {
+	value := readScenarioForKubernetes(t)
+	pods, nodes := discoveryFixtures(value)
+	chaos := fixturePod("chaos-controller", "", "system", pinnedImage("chaos"))
+	chaos.Spec.InitContainers = []containerSpec{{
+		Name:  "files-artifact-expander",
+		Image: "kurtosistech/files-artifacts-expander:1.20.0",
+	}}
+	if _, err := buildDiscovery(value, pods, []podResource{chaos}, nodes); err != nil {
+		t.Fatalf("buildDiscovery() error = %v", err)
+	}
+
+	mismatchedImage := chaos
+	mismatchedImage.Spec.InitContainers = []containerSpec{{
+		Name:  "files-artifact-expander",
+		Image: "attacker.invalid/files-artifacts-expander:1.20.0",
+	}}
+	if _, err := buildDiscovery(value, pods, []podResource{mismatchedImage}, nodes); err == nil || !strings.Contains(err.Error(), "not digest-pinned") {
+		t.Fatalf("buildDiscovery() error = %v", err)
+	}
+
+	mismatchedName := chaos
+	mismatchedName.Spec.InitContainers = []containerSpec{{
+		Name:  "setup",
+		Image: "kurtosistech/files-artifacts-expander:1.20.0",
+	}}
+	if _, err := buildDiscovery(value, pods, []podResource{mismatchedName}, nodes); err == nil || !strings.Contains(err.Error(), "not digest-pinned") {
+		t.Fatalf("buildDiscovery() error = %v", err)
+	}
+}
+
 func TestBuildDiscoveryRejectsSplitParticipantServices(t *testing.T) {
 	value := readScenarioForKubernetes(t)
 	pods, nodes := discoveryFixtures(value)
