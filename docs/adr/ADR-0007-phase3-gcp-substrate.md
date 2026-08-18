@@ -120,6 +120,20 @@ and requests must not be changed post hoc within the failed session. A passing
 qualification permits, but does not itself authorize, a new six-run evidence
 session using the same locked resource policy.
 
+## 2026-08-18 evidence topology decision
+
+The owner decided not to wait further on the denied 20-vCPU/16-preemptible
+quota request. The 12-vCPU on-demand topology from the resource-policy
+amendment above is now the locked Phase 3 evidence topology, not only a
+qualification-only configuration. `experiment/phase3.lock.env` already
+carries these values for both the qualification and the evidence path; no
+lock-file change accompanies this decision.
+
+This does not by itself authorize a six-run evidence session. Per the
+resource-policy amendment, a passing qualification on the current runner is
+still required first, and the owner separately authorizes the evidence
+session itself.
+
 ## Consequences
 
 The AWS preflight and fail-safe runner are retired from the allowed workflow and
