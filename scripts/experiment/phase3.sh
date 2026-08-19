@@ -326,12 +326,21 @@ delete_owned_cluster() {
         return
     fi
     info "Deleting owned GKE cluster: $cluster_name"
-    if ! gcloud container clusters delete "$cluster_name" \
-        --project "$GCP_PROJECT" --zone "$GCP_ZONE" --quiet; then
-        cleanup_failed=true
-        printf '[FAIL] GKE cluster deletion command failed: %s\n' "$cluster_name" >&2
-        return
-    fi
+    attempt=0
+    while [ "$attempt" -lt 8 ]; do
+        if gcloud container clusters delete "$cluster_name" \
+            --project "$GCP_PROJECT" --zone "$GCP_ZONE" --quiet; then
+            break
+        fi
+        attempt=$((attempt + 1))
+        if [ "$attempt" -ge 8 ]; then
+            cleanup_failed=true
+            printf '[FAIL] GKE cluster deletion command failed after bounded retries: %s\n' "$cluster_name" >&2
+            return
+        fi
+        info "GKE cluster deletion was refused, likely by a conflicting in-progress operation; retrying in 20s: attempt $attempt/8"
+        sleep 20
+    done
     attempt=0
     while [ "$attempt" -lt 12 ]; do
         count=$(cluster_count 2>/dev/null) || count=unknown
