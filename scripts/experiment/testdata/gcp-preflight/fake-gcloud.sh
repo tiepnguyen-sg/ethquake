@@ -31,13 +31,13 @@ case "$*" in
     "compute project-info describe --project ethquake-test --format=json")
         key=projectQuota
         ;;
-    "compute machine-types describe e2-standard-4 --project ethquake-test --zone northamerica-northeast2-a --format=json")
+    "compute machine-types describe e2-standard-4 --project ethquake-test --zone northamerica-northeast2-b --format=json")
         key=systemMachine
         ;;
-    "compute machine-types describe n2-custom-2-16384 --project ethquake-test --zone northamerica-northeast2-a --format=json")
+    "compute machine-types describe n2-custom-2-16384 --project ethquake-test --zone northamerica-northeast2-b --format=json")
         key=participantMachine
         ;;
-    "container get-server-config --project ethquake-test --zone northamerica-northeast2-a --format=json")
+    "container get-server-config --project ethquake-test --zone northamerica-northeast2-b --format=json")
         key=serverConfig
         ;;
     "container clusters list --project ethquake-test --format=json")

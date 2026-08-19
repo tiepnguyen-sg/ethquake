@@ -134,6 +134,35 @@ resource-policy amendment, a passing qualification on the current runner is
 still required first, and the owner separately authorizes the evidence
 session itself.
 
+## 2026-08-19 zone change
+
+Two consecutive real evidence attempts (`p3-260819-0005` after prior fixes,
+then `p3-260819-0215`/`p3-260819-0330`) failed identically: GKE's
+`CREATE_NODE_POOL` operation for `ethquake-p1` in `northamerica-northeast2-a`
+never completed. Direct inspection (Cloud Logging error reporting, not
+initially checked closely enough before recommending a further wait) showed
+`ZONE_RESOURCE_POOL_EXHAUSTED` for `n2-custom-2-16384`, retried repeatedly by
+GKE and failing every time — genuine, sustained capacity exhaustion in this
+specific zone, not a transient blip. GKE does not support cancelling a
+`CREATE_NODE_POOL` operation (`gcloud container operations cancel` and
+`gcloud container node-pools delete` both refuse with "Cluster is running
+incompatible operation" while it is in flight); the operation only released
+once its own underlying Managed Instance Group was manually resized to 0
+through the Compute Engine API, which is a different API surface than the
+GKE operation lock.
+
+The owner decided to move the locked zone rather than wait further. All
+three Toronto zones support the `e2-standard-4` and `n2-standard-4` (and by
+extension `n2-custom-2-16384`) machine types, and the `northamerica-
+northeast2` regional CPU quota already granted (32 vCPU) applies across all
+zones in the region, not per zone, so this needed no new quota request. The
+locked zone is now `northamerica-northeast2-b`; region, machine types, and
+every other locked value in the resource-policy amendment above are
+unchanged. Re-run the live price/quota preflight for the new zone before the
+next evidence session, per the standing rule that a price/availability
+preflight must run immediately before the first billable resource of a
+session.
+
 ## Consequences
 
 The AWS preflight and fail-safe runner are retired from the allowed workflow and

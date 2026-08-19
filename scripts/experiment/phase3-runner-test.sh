@@ -61,7 +61,7 @@ for expected in \
     '[PLAN] http_load_balancing=false' \
     '[PLAN] control_plane_authorization=runner-public-ip/32' \
     '[PLAN] region=northamerica-northeast2' \
-    '[PLAN] zone=northamerica-northeast2-a' \
+    '[PLAN] zone=northamerica-northeast2-b' \
     '[PLAN] cluster=ethquake-p3-local-check' \
     '[PLAN] network=ethquake-p3-local-check-net' \
     '[PLAN] subnet=ethquake-p3-local-check-subnet' \

@@ -76,7 +76,7 @@ if ! printf '%s\n' "$gke_version" | jq -R -e \
     die "GKE_VERSION must be an exact GKE patch version"
 fi
 if [ "${PHASE3_GCP_REGION:-}" != northamerica-northeast2 ] || \
-    [ "${PHASE3_GCP_ZONE:-}" != northamerica-northeast2-a ] || \
+    [ "${PHASE3_GCP_ZONE:-}" != northamerica-northeast2-b ] || \
     [ "${PHASE3_KUBERNETES_CONTEXT:-}" != gke-ethquake-phase3 ] || \
     [ "${PHASE3_SYSTEM_MACHINE_TYPE:-}" != e2-standard-4 ] || \
     [ "${PHASE3_PARTICIPANT_MACHINE_TYPE:-}" != n2-custom-2-16384 ] || \
